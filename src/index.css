@@ -1,0 +1,4 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #0A0F14; color: #E9EFF3; -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; }
+input::placeholder { color: #5C6A77; }
