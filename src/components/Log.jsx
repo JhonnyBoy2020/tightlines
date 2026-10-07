@@ -5,27 +5,33 @@ import { Label, Stat, Btn } from "./ui.jsx";
 const input = { border: `1px solid ${C.line2}`, background: "rgba(255,255,255,0.04)", color: C.text, borderRadius: 10, padding: "11px 12px", fontSize: 16, fontFamily: F.body, outline: "none", width: "100%" };
 
 /* Session form — conditions are captured automatically from the forecast */
-export function LogForm({ venue, day, moon, defaultDate, onSave, onCancel, flies }) {
+export function LogForm({ venue, day, moon, defaultDate, onSave, onCancel, flies, hasLive }) {
   const [f, setF] = useState({ fish: "", best: "", fly: "", line: "", note: "", date: defaultDate });
+  const [error, setError] = useState("");
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const cond = {
+  const cond = hasLive ? {
     press: day.pMean ? Math.round(day.pMean) : null, trend: day.press, water: Math.round(day.result.water), wind: day.wind, dir: day.dir,
-    cloud: day.cloud, hi: day.hi, moon: moon ? moon.name : null,
-  };
+    cloud: day.cloud, hi: day.hi, moon: moon ? moon.name : null, source: "Forecast model, not observed on site",
+  } : null;
+  function save() {
+    if (!/^\d+$/.test(f.fish) || Number(f.fish) > 9999) { setError("Enter a whole number of fish from 0 to 9999, including 0 for a blank session."); return; }
+    onSave({ id: crypto.randomUUID(), venueId: venue.id, venueName: venue.name, date: f.date, fish: f.fish, best: f.best, fly: f.fly, line: f.line, note: f.note, score: hasLive ? day.result.score : null, cond });
+  }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <Label>New session · {f.date}</Label>
-      <input inputMode="numeric" value={f.fish} onChange={set("fish")} placeholder="Fish caught (number)" style={input} />
-      <input value={f.best} onChange={set("best")} placeholder="Best fish (e.g. 4lb rainbow)" style={input} />
-      <input list="tl-flies" value={f.fly} onChange={set("fly")} placeholder="Fly that worked" style={input} />
+      <input aria-label="Fish caught" type="number" min="0" max="9999" step="1" inputMode="numeric" value={f.fish} onChange={set("fish")} placeholder="Fish caught (number)" style={input} />
+      <input aria-label="Best fish" value={f.best} onChange={set("best")} placeholder="Best fish (e.g. 4lb rainbow)" style={input} />
+      <input aria-label="Fly that worked" list="tl-flies" value={f.fly} onChange={set("fly")} placeholder="Fly that worked" style={input} />
       <datalist id="tl-flies">{flies.map((x) => <option key={x} value={x} />)}</datalist>
-      <input value={f.line} onChange={set("line")} placeholder="Line / depth (e.g. Di-3, 10ft)" style={input} />
-      <input value={f.note} onChange={set("note")} placeholder="Notes" style={input} />
+      <input aria-label="Line and depth" value={f.line} onChange={set("line")} placeholder="Line / depth (e.g. Di-3, 10ft)" style={input} />
+      <input aria-label="Session notes" value={f.note} onChange={set("note")} placeholder="Notes" style={input} />
       <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, lineHeight: 1.6 }}>
-        AUTO-SAVED: {cond.press ? `${cond.press} hPa ${PRESS[cond.trend]?.glyph || ""}` : ""} · WATER ~{cond.water}°C · {cond.dir} {cond.wind} MPH · {cond.cloud}% CLOUD{cond.moon ? ` · ${cond.moon.toUpperCase()} MOON` : ""}
+        {cond ? `FORECAST SNAPSHOT (NOT OBSERVED): ${cond.press || "—"} hPa · WATER ESTIMATE ~${cond.water}°C · ${cond.dir} ${cond.wind} MPH · ${cond.cloud}% CLOUD` : "No live forecast: sample conditions will not be saved to your journal."}
       </div>
+      {error && <p className="inline-error" role="alert">{error}</p>}
       <div style={{ display: "flex", gap: 6 }}>
-        <button onClick={() => onSave({ id: Date.now(), venueId: venue.id, venueName: venue.name, date: f.date, fish: f.fish || "0", best: f.best, fly: f.fly, line: f.line, note: f.note, score: day.result.score, cond })} style={{ flex: 1, border: "none", cursor: "pointer", background: C.text, color: C.bg, borderRadius: 10, padding: "12px 0", fontWeight: 700 }}>Save</button>
+        <button onClick={save} style={{ flex: 1, border: "none", cursor: "pointer", background: C.text, color: C.bg, borderRadius: 10, padding: "12px 0", fontWeight: 700 }}>Save</button>
         <button onClick={onCancel} style={{ flex: 1, border: `1px solid ${C.line2}`, cursor: "pointer", background: "transparent", color: C.text, borderRadius: 10, padding: "12px 0", fontWeight: 600 }}>Cancel</button>
       </div>
     </div>
@@ -42,8 +48,8 @@ export function LogEntry({ l, onDelete, showVenue }) {
         {l.cond && <><br /><span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim }}>{l.cond.press ? `${l.cond.press}hPa ${PRESS[l.cond.trend]?.glyph || ""} · ` : ""}{l.cond.water}°C water · {l.cond.dir}{l.cond.wind} · {l.cond.cloud}% cld</span></>}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>app said {l.score}</span>
-        <button aria-label="Delete session" onClick={() => onDelete(l.id)} style={{ border: "none", cursor: "pointer", background: "transparent", color: C.poor, fontSize: 18 }}>×</button>
+        <span style={{ fontFamily: F.mono, fontSize: 10, color: C.muted }}>{l.score == null ? "No forecast" : `model ${l.score}`}</span>
+        <button aria-label="Delete session" onClick={() => { if (window.confirm("Delete this session? If connected, this deletion syncs to your other devices.")) onDelete(l.id); }} style={{ border: "none", cursor: "pointer", background: "transparent", color: C.poor, fontSize: 18 }}>×</button>
       </div>
     </div>
   );
@@ -51,7 +57,7 @@ export function LogEntry({ l, onDelete, showVenue }) {
 
 function toCsv(log) {
   const cols = ["date", "venueName", "fish", "best", "fly", "line", "note", "score", "press", "trend", "water", "wind", "dir", "cloud", "moon"];
-  const esc = (v) => { const s = v == null ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const esc = (v) => { let s = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const rows = log.map((l) => cols.map((c) => esc(l[c] ?? l.cond?.[c])).join(","));
   return [cols.join(","), ...rows].join("\n");
 }
@@ -67,7 +73,7 @@ export default function LogScreen({ log, onDelete, onOpenVenue }) {
     };
     const blanks = log.filter((l) => !(parseInt(l.fish, 10) > 0)).length;
     // Was the app right? compare score vs catch
-    const good = log.filter((l) => l.score >= 7), poor = log.filter((l) => l.score < 4.5);
+    const good = log.filter((l) => l.score != null && l.score >= 7), poor = log.filter((l) => l.score != null && l.score < 4.5);
     const avg = (arr) => (arr.length ? Math.round((arr.reduce((a, l) => a + (parseInt(l.fish, 10) || 0), 0) / arr.length) * 10) / 10 : null);
     return {
       n, fish, avg: n ? Math.round((fish / n) * 10) / 10 : 0, blanks,

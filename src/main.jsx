@@ -13,6 +13,6 @@ ReactDOM.createRoot(document.getElementById("root")).render(
 // Offline support + "Add to Home Screen" app behaviour (production only)
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => { /* not fatal */ });
+    try { navigator.serviceWorker.register("/sw.js").catch(() => { /* unavailable in embedded previews */ }); } catch { /* opaque iframe origin */ }
   });
 }

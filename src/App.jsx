@@ -11,6 +11,13 @@ import { WatersMap, VenueMap } from "./components/Maps.jsx";
 import { NowCard, PressureChart, SolunarCard, HourlyTable } from "./components/Conditions.jsx";
 import Guide, { MonthCard } from "./components/Guide.jsx";
 import LogScreen, { LogForm, LogEntry } from "./components/Log.jsx";
+import { LayoutDashboard, Map, MapPin, Waves, FileText, BookOpen, NotebookPen, Bell, Sun, Moon, ArrowRight, Cloud } from "lucide-react";
+import Dashboard from "./components/Dashboard.jsx";
+import Rivers from "./components/Rivers.jsx";
+import Reports from "./components/Reports.jsx";
+import CloudSettings from "./components/CloudSettings.jsx";
+import useCloud from "./lib/useCloud.js";
+import { closureFor } from "./data/reports.js";
 
 /* ============================================================
    TIGHTLINES UK — live stillwater trout conditions
@@ -37,7 +44,7 @@ const Logo = ({ size = 26 }) => (
   </svg>
 );
 
-const NAV = [["waters", "Waters", "≋"], ["map", "Map", "◉"], ["guide", "Guide", "✦"], ["log", "Log", "☰"]];
+const NAV = [["today", "Overview", LayoutDashboard], ["waters", "Explore waters", MapPin], ["map", "Water map", Map], ["rivers", "River levels", Waves], ["reports", "Fishery reports", FileText], ["guide", "Fly guide", BookOpen], ["log", "My journal", NotebookPen]];
 
 function InstallHint({ onClose }) {
   return (
@@ -55,8 +62,9 @@ function InstallHint({ onClose }) {
 export default function App() {
   const wide = useWide();
   const online = useOnline();
-  const [screen, setScreen] = useState("waters");
-  const [venueId, setVenueId] = useState(null);
+  const [screen, setScreen] = useState("today");
+  const [venueId, setVenueId] = useState(() => { const id = new URLSearchParams(window.location.search).get("water"); return VENUES.some(v => v.id === id) ? id : null; });
+  const [theme, setTheme] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   const [radius, setRadius] = useState(() => LS.get("tl-radius", 30));
   const [homeDayIdx, setHomeDayIdx] = useState(0);
   const [sortBy, setSortBy] = useState("score");
@@ -81,7 +89,13 @@ export default function App() {
   useEffect(() => { LS.set("tl-radius", radius); }, [radius]);
   useEffect(() => { LS.set("tl-home", home); }, [home]);
   useEffect(() => { LS.set("tl-favs", favs); }, [favs]);
-  function saveLog(next) { setLog(next); LS.set("tl-log", next); }
+  function applyLog(next) { setLog(next); LS.set("tl-log", next); }
+  const cloud = useCloud(log, applyLog);
+  function saveLog(next) {
+    log.filter(l => !next.some(n => String(n.id) === String(l.id))).forEach(l => cloud.markDeleted(l.id));
+    applyLog(next);
+  }
+  useEffect(() => { document.documentElement.dataset.theme = theme; }, [theme]);
   const toggleFav = (id) => setFavs((f) => (f.includes(id) ? f.filter((x) => x !== id) : [...f, id]));
 
   function useGps() {
@@ -121,11 +135,11 @@ export default function App() {
   /* Every venue scored for the chosen day (map needs all; list filters by radius) */
   const all = useMemo(() => VENUES.map((v) => {
     const feed = feeds[v.id];
-    const w = scoreWeek(feed ? feed.week : SAMPLE_WEEK, v.profile).map((d) => ({ ...d, status: venueStatus(v, d.date) }));
+    const w = scoreWeek(feed ? feed.week : SAMPLE_WEEK, v.profile).map((d) => ({ ...d, status: closureFor(v.id) ? "Operator closure notice · confirm reopening" : venueStatus(v, d.date) }));
     const open = w.filter((d) => !d.status);
     const best = open.length ? open.reduce((b, d) => (d.result.score > b.result.score ? d : b), open[0]) : null;
     const sel = w[Math.min(homeDayIdx, w.length - 1)];
-    return { v, dist: milesFrom(v, home), sel, best, live: !!feed };
+    return { v, dist: milesFrom(v, home), sel, best, live: !!feed && !feed.stale };
   }), [feeds, homeDayIdx, home]);
 
   const ranked = useMemo(() => all
@@ -141,7 +155,7 @@ export default function App() {
 
   // Auto-load any waters in range that don't have a live feed yet (first open and when the radius grows)
   const loadScope = screen === "map" || wide ? all : inRadius; // the map shows every water, so load them all there
-  const missingKey = loadScope.filter((x) => !x.live && !loading[x.v.id] && !errors[x.v.id]).map((x) => x.v.id).join(",");
+  const missingKey = loadScope.filter((x) => !feeds[x.v.id] && !loading[x.v.id] && !errors[x.v.id]).map((x) => x.v.id).join(",");
   useEffect(() => {
     if (!missingKey || bulk) return;
     const t = setTimeout(() => loadAll(VENUES.filter((v) => missingKey.split(",").includes(v.id))), 150);
@@ -150,7 +164,7 @@ export default function App() {
 
   const venue = venueId ? VENUES.find((v) => v.id === venueId) : null;
   const feed = venue ? feeds[venueId] : null;
-  const week = useMemo(() => venue ? scoreWeek(feed ? feed.week : SAMPLE_WEEK, venue.profile).map((d) => ({ ...d, status: venueStatus(venue, d.date) })) : [], [venue, feed]);
+  const week = useMemo(() => venue ? scoreWeek(feed ? feed.week : SAMPLE_WEEK, venue.profile).map((d) => ({ ...d, status: closureFor(venue.id) ? "Operator closure notice · confirm reopening" : venueStatus(venue, d.date) })) : [], [venue, feed]);
   const bestIdx = useMemo(() => { let b = -1; week.forEach((d, i) => { if (!d.status && (b < 0 || d.result.score > week[b].result.score)) b = i; }); return b < 0 ? 0 : b; }, [week]);
   const day = week[Math.min(dayIdx, Math.max(0, week.length - 1))];
   const sun = useMemo(() => (venue && day ? sunTimes(day.date, venue.lat, venue.lon) : null), [venue, day]);
@@ -193,7 +207,7 @@ export default function App() {
   const liveBar = (
     <div style={{ ...panel, padding: "12px 14px", marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, background: `linear-gradient(135deg, ${C.panel2}, ${C.panel})` }}>
       <div style={{ minWidth: 0 }}>
-        <Label color={liveCount ? C.cyan : C.muted}>{!online ? "○ Offline" : liveCount ? `● ${liveCount}/${inRadius.length} waters live` : "○ Sample forecast"}</Label>
+        <Label color={liveCount ? C.cyan : C.muted}>{!online ? "Offline · data may be stale" : liveCount ? `${liveCount}/${inRadius.length} forecasts loaded` : "Waiting for forecasts"}</Label>
         <div style={{ fontSize: 12, color: C.muted, marginTop: 3 }}>{!online ? "Showing your last saved forecast — reconnect to refresh" : bulk ? `Pulling hourly feeds… ${bulk.done}/${bulk.total}` : "Open-Meteo hourly · pressure, wind, cloud, rain"}</div>
       </div>
       <button onClick={() => { setErrors({}); loadAll(inRadius.map((x) => x.v)); }} disabled={!!bulk} style={{ border: "none", cursor: "pointer", borderRadius: 999, background: C.cyan, color: C.bg, fontWeight: 700, fontSize: 13, padding: "10px 14px", opacity: bulk ? 0.6 : 1, flexShrink: 0 }}>{bulk ? "Loading…" : liveCount === inRadius.length && inRadius.length ? "Refresh" : "Go live — all"}</button>
@@ -229,7 +243,7 @@ export default function App() {
       {ranked.map(({ v, dist, sel, best, live }) => {
         const st = sel.status, err = errors[v.id], fav = favs.includes(v.id);
         return (
-          <button key={v.id} onClick={() => openVenue(v.id)} style={{ ...panel, cursor: "pointer", textAlign: "left", padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, opacity: st ? 0.55 : 1, color: C.text, borderColor: venueId === v.id ? C.cyan : C.line }}>
+          <button className="water-row" key={v.id} onClick={() => openVenue(v.id)} style={{ ...panel, cursor: "pointer", textAlign: "left", padding: "16px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, color: C.text, borderColor: venueId === v.id ? C.cyan : C.line }}>
             <div style={{ minWidth: 0, flex: 1 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 {fav && <span style={{ color: C.fair, fontSize: 13 }}>★</span>}
@@ -238,12 +252,12 @@ export default function App() {
               </div>
               <div style={{ fontSize: 12, color: C.muted, marginTop: 2 }}>{dist} mi · {v.ticket} · {v.profile.spring ? "spring-fed" : v.profile.depth}</div>
               <div style={{ fontSize: 13, fontWeight: 600, color: st ? C.muted : COL(sel.result.colorKey), marginTop: 4 }}>
-                {st ? st : `${sel.result.verdict} · water ~${Math.round(sel.result.water)}°C`}{best && !st && best.result.score > sel.result.score ? ` · best ${best.label}` : ""}{sel.thunder ? " · ⚡" : ""}
+                {st ? st : live ? `${sel.result.verdict} · water estimate ~${Math.round(sel.result.water)}°C` : "No current forecast"}{live && best && !st && best.result.score > sel.result.score ? ` · best ${best.label}` : ""}{live && sel.thunder ? " · Thunder forecast" : ""}
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-              <div style={{ background: st ? "rgba(255,255,255,0.05)" : BG(sel.result.colorKey), color: st ? C.muted : COL(sel.result.colorKey), borderRadius: 12, padding: "6px 12px", fontFamily: F.mono, fontWeight: 700, fontSize: 18 }}>{st ? "—" : sel.result.score}</div>
-              <div style={{ fontFamily: F.mono, fontSize: 10, color: C.muted, whiteSpace: "nowrap" }}>{sel.pMean ? `${Math.round(sel.pMean)}` : `${sel.hi}°`} {PRESS[sel.press].glyph} {sel.dir}{sel.wind}</div>
+              <div style={{ background: st ? "rgba(255,255,255,0.05)" : BG(sel.result.colorKey), color: st ? C.muted : COL(sel.result.colorKey), borderRadius: 12, padding: "6px 12px", fontFamily: F.mono, fontWeight: 700, fontSize: 18 }}>{st || !live ? "—" : sel.result.score}</div>
+              {live && <div style={{ fontFamily: F.mono, fontSize: 12, color: C.muted, whiteSpace: "nowrap" }}>{sel.pMean ? `${Math.round(sel.pMean)} hPa` : `${sel.hi}°`} {PRESS[sel.press].glyph}</div>}
             </div>
           </button>
         );
@@ -280,7 +294,7 @@ export default function App() {
           <div style={{ fontSize: 13, color: C.muted, marginTop: 4 }}>{venue.where} · {milesFrom(venue, home)} mi · {venue.species}</div>
           <div style={{ marginTop: 8, display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <span style={{ fontSize: 11, background: "rgba(255,255,255,0.06)", borderRadius: 999, padding: "4px 9px", color: C.text }}>{venue.profile.note}</span>
-            <span style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: "0.1em", color: venue.profile.verified ? C.go : C.fair }}>{venue.profile.verified ? "VERIFIED" : "ESTIMATED"}</span>
+            <span style={{ fontFamily: F.mono, fontSize: 9, letterSpacing: "0.1em", color: C.muted }}>CATALOGUE PROFILE · CHECK LOCALLY</span>
             <SourceTag live={!!feed} />
           </div>
         </div>
@@ -317,7 +331,7 @@ export default function App() {
             <span style={{ fontFamily: F.mono, fontSize: 11, color: C.cyan }}>{Math.round(feed.now.press)} hPa {feed.now.t3 <= -0.5 ? "↘" : feed.now.t3 >= 0.5 ? "↗" : "→"}</span>
           </div>
           <div style={{ marginTop: 10 }}><PressureChart series={feed.series} /></div>
-          <div style={{ fontSize: 12, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>A drop of 1 hPa or more in 3 hours usually means a front is on its way, which is often a short, hot feeding spell. Above the dashed 1021 line, expect high-pressure "lockjaw".</div>
+          <div style={{ fontSize: 12, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>Pressure is weather context, not a dependable bite predictor. The 1021 hPa reference is a model convention, not a biological threshold. Compare the pattern with your own catches.</div>
         </div>
       )}
       {!wide && <SolunarCard sol={sol} moon={moon} />}
@@ -438,7 +452,7 @@ export default function App() {
         {!logForm ? (
           <button onClick={() => setLogForm(true)} style={{ width: "100%", border: "none", cursor: "pointer", background: C.cyan, color: C.bg, borderRadius: 12, padding: "13px 0", fontWeight: 700, fontSize: 14 }}>+ Log a session here</button>
         ) : (
-          <LogForm venue={venue} day={day} moon={moon} defaultDate={dateStr(day.date)} flies={FLIES.map((f) => f.n)} onSave={(e) => { saveLog([e, ...log]); setLogForm(false); }} onCancel={() => setLogForm(false)} />
+          <LogForm venue={venue} day={day} moon={moon} hasLive={!!feed && !feed.stale} defaultDate={day.date.toLocaleDateString("sv-SE", { timeZone: "Europe/London" })} flies={FLIES.map((f) => f.n)} onSave={(e) => { saveLog([e, ...log]); setLogForm(false); }} onCancel={() => setLogForm(false)} />
         )}
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 10 }}>
@@ -456,6 +470,8 @@ export default function App() {
       <div style={wide ? { display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,420px)", gap: 16, alignItems: "start" } : {}}>
         <div>
           {venueHeader}
+          {closureFor(venue.id) && <div className="notice-strip compact"><div><strong>Operator notice takes priority over the score.</strong><p>{closureFor(venue.id).text}</p><a href={closureFor(venue.id).url} target="_blank" rel="noreferrer">Read operator notice · checked {closureFor(venue.id).checkedAt}</a></div></div>}
+          {!feed && <p className="inline-error">Illustrative forecast only. The detail below uses sample data until the live weather feed loads; do not use it to plan a trip.</p>}
           {!wide && <div style={{ marginTop: 10 }}>{venueMapBlock}</div>}
           {errors[venueId] && <div style={{ background: C.poorBg, border: `1px solid ${C.poor}`, color: C.text, borderRadius: 12, padding: "10px 14px", fontSize: 12, marginTop: 10, fontFamily: F.mono, lineHeight: 1.5 }}>Live feed failed: {errors[venueId]}<br /><span style={{ color: C.muted }}>Showing sample data. Tap "Go live" to retry.</span></div>}
           <div style={{ marginTop: 10 }}><DayStrip week={week} activeIdx={Math.min(dayIdx, week.length - 1)} onPick={setDayIdx} /></div>
@@ -484,6 +500,10 @@ export default function App() {
   /* ---------------- Screens ---------------- */
   let body;
   if (venue) body = venueView;
+  else if (screen === "today") body = <Dashboard items={all} feeds={feeds} home={home} radius={radius} onOpen={openVenue} go={go} log={log} favs={favs} loading={!!bulk} />;
+  else if (screen === "rivers") body = <Rivers home={home} />;
+  else if (screen === "reports") body = <Reports cloudKey={cloud.key} openCloud={() => go("settings")} />;
+  else if (screen === "settings") body = <CloudSettings cloud={cloud} favs={favs} log={log} />;
   else if (screen === "map") body = (
     <>
       {homeBar}
@@ -493,7 +513,7 @@ export default function App() {
     </>
   );
   else if (screen === "guide") body = <Guide />;
-  else if (screen === "log") body = <LogScreen log={log} onDelete={(id) => saveLog(log.filter((x) => x.id !== id))} onOpenVenue={(id) => { setScreen("waters"); openVenue(id); }} />;
+  else if (screen === "log") body = <><div className="page-heading"><div><p className="eyebrow">YOUR OWN BEST EVIDENCE</p><h1>The fishing journal.</h1><p>Build a picture of the waters, flies and conditions that work for you.</p></div><button className="button secondary" onClick={() => go("settings")}><Cloud size={16} />{cloud.key ? cloud.status : "Sync across devices"}</button></div><LogScreen log={log} onDelete={(id) => saveLog(log.filter((x) => x.id !== id))} onOpenVenue={(id) => { setScreen("waters"); openVenue(id); }} /></>;
   else body = wide ? (
     <div style={{ display: "grid", gridTemplateColumns: "440px minmax(0,1fr)", gap: 16, alignItems: "start" }}>
       <div>{hint && <InstallHint onClose={() => { setHint(false); LS.set("tl-hint-off", true); }} />}{homeBar}{liveBar}{dayPicker}{filters}{list}{monthTeaser}{recent}</div>
@@ -505,44 +525,22 @@ export default function App() {
     <>{hint && <InstallHint onClose={() => { setHint(false); LS.set("tl-hint-off", true); }} />}{homeBar}{liveBar}{dayPicker}{filters}{list}{monthTeaser}{recent}</>
   );
 
-  return (
-    <div style={{ minHeight: "100vh", background: `radial-gradient(1200px 500px at 50% -200px, #14303A 0%, ${C.bg} 60%)`, fontFamily: F.body, color: C.text }}>
-      <div style={{ maxWidth: wide ? 1280 : 480, margin: "0 auto", padding: wide ? "0 24px 40px" : "0 14px calc(90px + env(safe-area-inset-bottom))" }}>
-        <header style={{ padding: "calc(16px + env(safe-area-inset-top)) 2px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <button onClick={() => go("waters")} style={{ border: "none", background: "transparent", padding: 0, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, color: C.text }}>
-            <Logo />
-            <span style={{ fontFamily: F.display, fontWeight: 800, fontSize: 24, letterSpacing: "-0.02em" }}>TIGHT<span style={{ color: C.cyan }}>LINES</span></span>
-          </button>
-          {wide && (
-            <nav style={{ display: "flex", gap: 6 }}>
-              {NAV.map(([k, t]) => <Chip key={k} on={screen === k && !venue} onClick={() => go(k)}>{t}</Chip>)}
-            </nav>
-          )}
-          <div style={{ fontFamily: F.mono, fontSize: 11, color: C.muted }}>{dateStr(TODAY).toUpperCase()}</div>
-        </header>
-
+  return <div className="app-shell">
+    <a className="skip-link" href="#main">Skip to content</a>
+    <aside className="sidebar">
+      <button className="brand" onClick={() => go("today")} aria-label="TightLines overview"><Logo size={34} /><span>TIGHTLINES<small>THE ANGLER'S FIELD GUIDE</small></span></button>
+      <p className="nav-label">OUT ON THE WATER</p>
+      <nav aria-label="Main navigation">{NAV.map(([k, title, Icon]) => <button key={k} className={`nav-item ${screen === k && !venue ? "active" : ""}`} onClick={() => go(k)}><Icon size={19} /><span>{title}</span>{k === "reports" && <span className="nav-count">1</span>}</button>)}</nav>
+      <div className="sidebar-bottom"><div className="sidebar-note"><Waves size={22} /><p>Less guesswork.<br />More time on the water.</p><span>South East England</span></div><button className={`nav-item ${screen === "settings" ? "active" : ""}`} onClick={() => go("settings")}><Bell size={18} />Alerts & sync</button><p className="sidebar-version">TIGHTLINES UK · FIELD EDITION 03</p></div>
+    </aside>
+    <div className="workspace">
+      <header className="topbar"><div className="topbar-title"><button className="mobile-brand" onClick={() => go("today")}><Logo />TIGHTLINES</button><span className="desktop-crumb">Your field guide <span>/</span> {venue ? venue.name : NAV.find(n => n[0] === screen)?.[1] || "Alerts & sync"}</span></div><div className="topbar-actions"><span className="topbar-date">{new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" })}</span><button className="icon-button" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={() => setTheme(theme === "light" ? "dark" : "light")}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}</button><button className="icon-button" aria-label="Alerts and sync" onClick={() => go("settings")}><Bell size={19} /></button></div></header>
+      <main id="main" tabIndex="-1" className="main-content">
+        {!online && <div className="inline-error">You're offline. Cached forecasts may be out of date; river readings and cloud sync require a connection.</div>}
         {body}
-
-        <div style={{ marginTop: 20, textAlign: "center", fontFamily: F.mono, fontSize: 10, color: C.dim, lineHeight: 1.7 }}>
-          FEED: OPEN-METEO HOURLY · UPDATED ON OPEN<br />SCORE: WATER MODEL · PRESSURE TREND · CLOUD · WIND · OVERNIGHT · RAIN · DEPTH · SPRING · SOLUNAR
-        </div>
-      </div>
-
-      {!wide && (
-        <nav style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 1000, background: "rgba(10,15,20,0.92)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderTop: `1px solid ${C.line}`, paddingBottom: "env(safe-area-inset-bottom)" }}>
-          <div style={{ maxWidth: 480, margin: "0 auto", display: "flex" }}>
-            {NAV.map(([k, t, g]) => {
-              const on = screen === k && (!venue || k === "waters" || k === "map");
-              return (
-                <button key={k} onClick={() => go(k)} style={{ flex: 1, border: "none", background: "transparent", cursor: "pointer", padding: "10px 0 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, color: on ? C.cyan : C.muted }}>
-                  <span style={{ fontSize: 17, lineHeight: 1 }}>{g}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600 }}>{t}</span>
-                </button>
-              );
-            })}
-          </div>
-        </nav>
-      )}
+        <footer className="app-footer"><span>TIGHTLINES UK <span>For the days worth getting up for.</span></span><span>Forecasts: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Model scores, not catch guarantees</span></footer>
+      </main>
     </div>
-  );
+    <nav className="mobile-nav" aria-label="Mobile navigation">{NAV.map(([k, title, Icon]) => <button key={k} className={screen === k && !venue ? "active" : ""} onClick={() => go(k)}><Icon size={19} /><span>{{ today: "Today", waters: "Waters", map: "Map", rivers: "Rivers", reports: "Reports", guide: "Guide", log: "Journal" }[k]}</span></button>)}</nav>
+  </div>;
 }

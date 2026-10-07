@@ -45,7 +45,7 @@ function clean(arr, fallback = 0) {
 
 const londonHourKey = (d = new Date()) => d.toLocaleString("sv-SE", { timeZone: "Europe/London" }).slice(0, 13).replace(" ", "T");
 
-function parse(j) {
+function parse(j, response) {
   const H = j.hourly;
   if (!H || !H.time || H.time.length < 48) throw new Error("No hourly data returned");
   const S = {};
@@ -79,7 +79,7 @@ function parse(j) {
   for (let d = 1; d < days.length && out.length < 7; d++) {
     const delta = days[d].pMean - days[d - 1].pMean;
     const press = delta <= -2.5 ? "falling" : delta >= 2.5 ? "rising" : days[d].pMean >= 1021 ? "steady-high" : "steady";
-    out.push({ ...days[d], press, pDelta: Math.round(delta * 10) / 10, date: addDays(TODAY, out.length) });
+    out.push({ ...days[d], press, pDelta: Math.round(delta * 10) / 10, date: new Date(H.time[d * 24].slice(0, 10) + "T12:00:00Z") });
   }
   if (out.length < 5) throw new Error("Too few forecast days returned");
   const nowP = S.pressure_msl[nowIdx];
@@ -93,7 +93,9 @@ function parse(j) {
   };
   // Pressure series for charting: from 24h ago to +72h
   const series = H.time.map((t, i) => ({ t, p: S.pressure_msl[i] })).slice(Math.max(0, nowIdx - 24), nowIdx + 72);
-  return { week: out, now, series, nowKey: H.time[nowIdx], source: "Open-Meteo", at: new Date() };
+  const cachedAt = response?.headers.get("X-TightLines-Cached-At");
+  const stale = response?.headers.get("X-TightLines-Offline") === "true";
+  return { week: out, now, series, nowKey: H.time[nowIdx], source: stale ? "Cached Open-Meteo (offline)" : "Open-Meteo", at: cachedAt ? new Date(cachedAt) : new Date(), stale };
 }
 
 const url = (lats, lons) => `https://api.open-meteo.com/v1/forecast?latitude=${lats}&longitude=${lons}&hourly=${HOURLY.join(",")}&wind_speed_unit=mph&timezone=Europe%2FLondon&past_days=1&forecast_days=7`;
@@ -101,7 +103,7 @@ const url = (lats, lons) => `https://api.open-meteo.com/v1/forecast?latitude=${l
 export async function fetchLive(v) {
   const res = await withTimeout(fetch(url(v.lat, v.lon)), 12000, "Open-Meteo");
   if (!res.ok) throw new Error(`Open-Meteo ${res.status}`);
-  return parse(await res.json());
+  return parse(await res.json(), res);
 }
 
 /* Batch: one request for up to 10 waters. Returns { id: feed | Error } */
@@ -112,6 +114,6 @@ export async function fetchMany(list) {
   const j = await res.json();
   const arr = Array.isArray(j) ? j : [j];
   const out = {};
-  list.forEach((v, i) => { try { out[v.id] = parse(arr[i]); } catch (e) { out[v.id] = e; } });
+  list.forEach((v, i) => { try { out[v.id] = parse(arr[i], res); } catch (e) { out[v.id] = e; } });
   return out;
 }

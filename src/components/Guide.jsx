@@ -18,7 +18,7 @@ export function MonthCard({ g, compact }) {
       </div>
       <div style={{ fontFamily: F.display, fontSize: 20, fontWeight: 800, marginTop: 6, lineHeight: 1.2 }}>{g.headline}</div>
       <div style={{ marginTop: 14 }}>
-        <Label>What's biting</Label>
+        <Label>Likely trout food, not live catch reports</Label>
         <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 8 }}>
           {g.biting.map((b) => <div key={b} style={{ fontSize: 14, display: "flex", gap: 8 }}><span style={{ color: C.go }}>●</span>{b}</div>)}
         </div>

@@ -47,7 +47,7 @@ function InvalidateOnResize() {
 }
 
 /* Overview map of all waters, coloured by the selected day's score */
-export function WatersMap({ items, home, radius, onOpen, height = 420 }) {
+export function WatersMap({ items, home, radius, onOpen, height = 420, initial = "osm" }) {
   const markers = useMemo(() => items.map((x) => {
     const st = x.sel.status;
     if (!x.live && !st) return { ...x, icon: pin("·", C.dim, true) };
@@ -57,7 +57,7 @@ export function WatersMap({ items, home, radius, onOpen, height = 420 }) {
   return (
     <div className="tl-map" style={{ height, borderRadius: 18, overflow: "hidden", border: `1px solid ${C.line}` }}>
       <MapContainer center={[home.lat, home.lon]} zoom={9} style={{ height: "100%", width: "100%" }} scrollWheelZoom>
-        <Layers />
+        <Layers initial={initial} />
         <FitRadius home={home} radius={radius} />
         <InvalidateOnResize />
         <Circle center={[home.lat, home.lon]} radius={radius * 1609.34} pathOptions={{ color: C.cyan, weight: 1, fillOpacity: 0.04, dashArray: "4 6" }} />
@@ -68,7 +68,7 @@ export function WatersMap({ items, home, radius, onOpen, height = 420 }) {
               <div className="tl-pop">
                 <b>{x.v.name}</b>
                 <div>{x.v.where} · {x.dist} mi</div>
-                <div style={{ color: x.sel.status || !x.live ? "#8A98A6" : COL(x.sel.result.colorKey), fontWeight: 700 }}>{x.sel.status || (x.live ? `${x.sel.result.score}/10 · ${x.sel.result.verdict}` : "Outside your radius — open to load live data")}</div>
+                <div style={{ color: x.sel.status || !x.live ? C.muted : COL(x.sel.result.colorKey), fontWeight: 700 }}>{x.sel.status || (x.live ? `${x.sel.result.score}/10 · ${x.sel.result.verdict}` : "Forecast unavailable. Open to retry.")}</div>
                 <button onClick={() => onOpen(x.v.id)}>Open forecast →</button>
               </div>
             </Popup>

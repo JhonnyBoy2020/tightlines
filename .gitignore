@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env*
+.netlify/
+.preview-data/
+*.log
+._*
+server/deployment-context.generated.js
