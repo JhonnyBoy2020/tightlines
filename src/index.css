@@ -1,4 +1,26 @@
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: #0A0F14; color: #E9EFF3; -webkit-font-smoothing: antialiased; }
+html, body { margin: 0; padding: 0; background: #0A0F14; color: #E9EFF3; -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
 button, input { font: inherit; }
 input::placeholder { color: #5C6A77; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid #4FD6C8; outline-offset: 2px; }
+.noscroll { scrollbar-width: none; }
+.noscroll::-webkit-scrollbar { display: none; }
+
+/* Leaflet — dark theme to match the app */
+.tl-map .leaflet-container { background: #0D141A; font-family: -apple-system, 'SF Pro Text', 'Segoe UI', Roboto, sans-serif; }
+.tl-map .leaflet-control-layers, .tl-map .leaflet-bar a { background: #111920; color: #E9EFF3; border-color: rgba(255,255,255,0.14); }
+.tl-map .leaflet-control-layers { border-radius: 10px; border: 1px solid rgba(255,255,255,0.14) !important; }
+.tl-map .leaflet-control-layers-expanded { padding: 8px 10px; font-size: 13px; }
+.tl-map .leaflet-bar { border: 1px solid rgba(255,255,255,0.14) !important; border-radius: 10px; overflow: hidden; }
+.tl-map .leaflet-bar a:hover { background: #162029; }
+.tl-map .leaflet-control-attribution { background: rgba(10,15,20,0.7); color: #8A98A6; font-size: 9px; }
+.tl-map .leaflet-control-attribution a { color: #4FD6C8; }
+.tl-map .leaflet-popup-content-wrapper, .tl-map .leaflet-popup-tip { background: #111920; color: #E9EFF3; border: 1px solid rgba(255,255,255,0.14); }
+.tl-map .leaflet-popup-content { margin: 12px 14px; }
+.tl-map .leaflet-container a.leaflet-popup-close-button { color: #8A98A6; }
+.tl-pop { font-size: 13px; line-height: 1.5; min-width: 170px; }
+.tl-pop b { font-size: 14px; }
+.tl-pop button { margin-top: 8px; width: 100%; border: none; border-radius: 8px; background: #4FD6C8; color: #0A0F14; font-weight: 700; padding: 8px 0; cursor: pointer; }
+.tl-pin { background: transparent; border: none; }
+.tl-pin-b { width: 34px; height: 24px; border-radius: 12px; color: #0A0F14; font: 700 12px ui-monospace, 'SF Mono', Menlo, monospace; display: flex; align-items: center; justify-content: center; border: 2px solid #0A0F14; box-shadow: 0 2px 8px rgba(0,0,0,0.5); }
+.tl-home { width: 26px; height: 26px; border-radius: 13px; background: #0A0F14; color: #4FD6C8; border: 2px solid #4FD6C8; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 0 12px rgba(79,214,200,0.6); }
