@@ -39,3 +39,14 @@ Pocket Ghillie is the new user-facing name. The purchased domain is pocketghilli
 - [Review branch and pull request](https://github.com/JhonnyBoy2020/tightlines/pull/2)
 - [OpenAI project](https://platform.openai.com/settings/proj_Lw7VFbBtwSySCsw5PGcyyuLa)
 - [Netlify environment settings](https://app.netlify.com/projects/tightlines-uk/configuration/env)
+
+## Verification results, 8 October 2026
+
+- The rebranded Netlify preview deployed successfully, while `main` remained at `16ad469`.
+- Both approved live AI requests returned answers. Optional journal and inventory counts were zero.
+- Thornwood answer used the supplied forecast and qualified water temperature as modelled.
+- Hanningfield answer prioritised the dated closure and explicitly distinguished the seasonal stocking plan from a recent stocking event.
+- Both answers incorrectly described unshared inventory as empty and referenced B1. The backend was subsequently corrected to send null for unshared data, constrain allowed references and visibly flag unsupported reference IDs. This correction has deterministic tests; no additional paid model request was made after the two approved calls.
+- Desktop 1440px and phone 375px screenshots inspected; wordmark and navigation fit. Light/dark overview checked. No horizontal overflow or uncaught browser errors observed.
+- Browser and home-screen manifest names changed; existing storage identifiers remain unchanged.
+- The private preview logbook was created with zero local sessions and remains connected in the user's preview tab. Its key must be saved privately before closing that tab.

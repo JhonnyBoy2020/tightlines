@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { handler } from "../server/service.mjs";
 import { store } from "../server/storage.mjs";
-import { claimQuota, buildEvidence, aiStatus, coach, reasoningOptions } from "../server/ai.mjs";
+import { claimQuota, buildEvidence, aiStatus, coach, reasoningOptions, citationWarnings } from "../server/ai.mjs";
 import { emptyField, validateField, elapsedMs, rankTrips, validDate } from "../src/lib/field.js";
 import { VENUES, DEFAULT_HOME } from "../src/data/venues.js";
 const root = await mkdtemp(path.join(os.tmpdir(), "tl-field-test-"));
@@ -13,6 +13,14 @@ test("reasoning configuration is optional and validated", () => {
   assert.deepEqual(reasoningOptions(""), {});
   assert.deepEqual(reasoningOptions("low"), { reasoning: { effort: "low" } });
   assert.throws(() => reasoningOptions("invalid"), /Invalid AI reasoning/);
+});
+test("unshared personal data is absent and unsupported AI references are flagged", async () => {
+  const evidence = await buildEvidence({ venueIds: ["thornwood"], date: "2026-10-08" }, { fetcher: async () => ({}) });
+  assert.equal(evidence.context.inventory, null);
+  assert.equal(evidence.context.recentJournal, null);
+  assert.equal(evidence.context.allowedEvidenceIds.includes("B1"), false);
+  assert.equal(citationWarnings("Forecast [W1].", evidence.sources).length, 0);
+  assert.match(citationWarnings("Empty fly box [B1].", evidence.sources)[0], /B1 was not supplied/);
 });
 process.env.TL_PREVIEW_DATA = root;
 const call = async (route, key, data, method) => {
@@ -66,7 +74,7 @@ test("AI context preserves missing forecasts and dated closure evidence", async 
   assert.equal(result.context.waters[0].forecast, null);
   assert.ok(result.context.notices.some(n => n.type === "closure"));
   assert.ok(result.sources.some(s => s.url === "https://www.watersideparksuk.com/fishing/"));
-  assert.deepEqual(result.context.recentJournal.entries, []);
+  assert.equal(result.context.recentJournal, null);
   assert.equal(result.warnings.length, 2);
 });
 test("quota conditional claims resist concurrent requests", async () => {
