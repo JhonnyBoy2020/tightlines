@@ -166,7 +166,7 @@ export async function handler(req) {
       if (Date.now() - (old.data.testAt || 0) < 60000) throw bad("Wait one minute before another test.", 429);
       const claimed = await db.setJSON(`subscriptions/${id}`, { ...old.data, testAt: Date.now() }, { onlyIfMatch: old.etag });
       if (!claimed.modified) throw bad("Please retry.", 409);
-      await sendPush(old.data.subscription, { title: "TightLines is connected", body: "Test notification. No fishing recommendation is implied.", url: "/", tag: "tightlines-test" });
+      await sendPush(old.data.subscription, { title: "Pocket Ghillie is connected", body: "Test notification. No fishing recommendation is implied.", url: "/", tag: "tightlines-test" });
       return json({ ok: true });
     }
     throw bad("Not found.", 404);

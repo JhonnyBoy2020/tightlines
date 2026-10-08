@@ -86,14 +86,14 @@ export default function LogScreen({ log, onDelete, onOpenVenue }) {
   function exportCsv() {
     const blob = new Blob([toCsv(log)], { type: "text/csv" });
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = "tightlines-log.csv"; a.click();
+    a.href = URL.createObjectURL(blob); a.download = "pocket-ghillie-log.csv"; a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
 
   if (!log.length) return (
     <div style={{ ...panel, padding: 24, textAlign: "center" }}>
       <div style={{ fontFamily: F.display, fontSize: 20, fontWeight: 800 }}>No sessions yet</div>
-      <div style={{ fontSize: 14, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>Open a water and tap Log to record a trip. TightLines saves the pressure, wind, cloud, water estimate and moon with each session, so over time you'll see what really works for you.</div>
+      <div style={{ fontSize: 14, color: C.muted, marginTop: 6, lineHeight: 1.5 }}>Open a water and tap Log to record a trip. Pocket Ghillie saves the pressure, wind, cloud, water estimate and moon with each session, so over time you'll see what really works for you.</div>
     </div>
   );
 

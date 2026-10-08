@@ -20,7 +20,7 @@ export default function FieldBook({ book, cloud, feeds, home, log, onSaveLog, on
     setLocalError(""); setRestore(null);
     try {
       const file = e.target.files?.[0]; if (!file) return;
-      if (file.size > 300000) throw new Error("That file is too large. Choose a TightLines field-book JSON backup.");
+      if (file.size > 300000) throw new Error("That file is too large. Choose a Pocket Ghillie field-book JSON backup.");
       setRestore(validateField(JSON.parse(await file.text()))); setNotice("");
     } catch (error) { setLocalError(error.message); }
     e.target.value = "";
@@ -72,7 +72,7 @@ export default function FieldBook({ book, cloud, feeds, home, log, onSaveLog, on
       <div><h3><Cloud size={18} /> Keep your field book safe</h3><p className="small muted">{book.dirty ? "Unsaved changes in this tab." : "No unsaved field-book changes."} Cloud checkpoints are manual; offline drafts do not survive closing this tab unless exported. Catch journal storage is separate.</p></div>
       <div className="button-row">
         {cloud.key ? <button className="button primary" disabled={book.busy || book.revision === null} onClick={book.save}>{book.busy ? "Working…" : "Save to cloud"}</button> : <button className="button primary" onClick={openCloud}>Connect private logbook</button>}
-        <button className="button secondary" onClick={() => downloadJSON("tightlines-field-book.json", data)}><Download size={15} />Export backup</button>
+        <button className="button secondary" onClick={() => downloadJSON("pocket-ghillie-field-book.json", data)}><Download size={15} />Export backup</button>
         <button className="text-button" onClick={() => fileRef.current.click()}>Import backup</button>
         {cloud.key && <button className="text-button" disabled={book.busy} onClick={() => setLoadConfirm(true)}>Load saved copy</button>}
         <input ref={fileRef} hidden type="file" accept=".json,application/json" aria-label="Import field-book backup" onChange={importFile} />
@@ -156,7 +156,7 @@ function Coach({ cloud, openCloud, plan, shortlist, flies, log }) {
     finally { setBusy(false); }
   }
   return <div className="coach-layout"><section className="panel coach-main">
-    <div className="section-heading"><div><p className="eyebrow"><Sparkles size={16} /> TIGHTLINES COACH</p><h2>A second pair of eyes on your plan.</h2></div><span className={`data-pill ${status?.enabled ? "" : "warning"}`}>{status === null ? "Checking…" : status.enabled ? "AI connected" : "Not connected here"}</span></div>
+    <div className="section-heading"><div><p className="eyebrow"><Sparkles size={16} /> POCKET GHILLIE COACH</p><h2>A second pair of eyes on your plan.</h2></div><span className={`data-pill ${status?.enabled ? "" : "warning"}`}>{status === null ? "Checking…" : status.enabled ? "AI connected" : "Not connected here"}</span></div>
     <p className="small muted">Ask about your selected water, the forecast or your own patterns. Every question is standalone; the coach does not browse the web or remember previous conversations.</p>
     <div className="prompt-chips">{["What should I try from my fly box?", "Explain the forecast and any reasons not to go.", "What can my recent journal actually tell us?"].map(p => <button key={p} onClick={() => setQuestion(p)}>{p}</button>)}</div>
     <form onSubmit={ask}>
@@ -173,5 +173,5 @@ function Coach({ cloud, openCloud, plan, shortlist, flies, log }) {
     </form>
     {busy && <p className="small muted" role="status">Fetching a fresh forecast and preparing advice. This may take up to a minute; cancelling stops waiting but may not stop provider processing.</p>}
     {answer && <article className="coach-answer" aria-live="polite"><p className="eyebrow">AI-GENERATED · {dateLabel(answer.date)}</p><h3>{answer.question}</h3>{answer.warnings?.map((w, i) => <p className="inline-error" key={i}>{w}</p>)}<div className="coach-text">{answer.answer}</div><p className="small muted">Included: {answer.inventoryCount} patterns · {answer.journalCount} journal entries. Review advice against the evidence; AI can make mistakes.</p><details className="coach-evidence" open><summary>Evidence supplied to this answer</summary>{answer.sources.map(s => s.url ? <a key={s.id} href={s.url} target="_blank" rel="noreferrer"><span>[{s.id}] {s.title}</span><small>{s.at ? `Data / review time: ${s.at}` : "Catalogue information, not a live check"}</small></a> : <p key={s.id} className="evidence-local">[{s.id}] {s.title}</p>)}</details></article>}
-  </section><aside className="panel coach-boundaries"><ShieldCheck size={28} /><p className="eyebrow field-spacing">INFORMED, NOT INFALLIBLE</p><h2>Advice with its working visible.</h2><ul><li><b>Fresh evidence</b><span>Server-fetched forecasts and dated, curated notices. Missing data stays missing.</span></li><li><b>Your choice</b><span>Your journal and inventory are optional. No private logbook key is sent to the model.</span></li><li><b>Clear limits</b><span>No guaranteed catches, invented stocking reports, booking claims or safety assurances.</span></li><li><b>Controlled use</b><span>10 requests per logbook and 40 total per day on this test release. Failed provider attempts count.</span></li></ul><p className="small muted">Answers are not saved by TightLines. Response storage is disabled in the API request, but the provider's own retention and processing terms still apply.</p></aside></div>;
+  </section><aside className="panel coach-boundaries"><ShieldCheck size={28} /><p className="eyebrow field-spacing">INFORMED, NOT INFALLIBLE</p><h2>Advice with its working visible.</h2><ul><li><b>Fresh evidence</b><span>Server-fetched forecasts and dated, curated notices. Missing data stays missing.</span></li><li><b>Your choice</b><span>Your journal and inventory are optional. No private logbook key is sent to the model.</span></li><li><b>Clear limits</b><span>No guaranteed catches, invented stocking reports, booking claims or safety assurances.</span></li><li><b>Controlled use</b><span>10 requests per logbook and 40 total per day on this test release. Failed provider attempts count.</span></li></ul><p className="small muted">Answers are not saved by Pocket Ghillie. Response storage is disabled in the API request, but the provider's own retention and processing terms still apply.</p></aside></div>;
 }

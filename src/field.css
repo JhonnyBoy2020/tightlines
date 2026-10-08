@@ -22,3 +22,7 @@ html[data-theme="dark"]{color-scheme:dark}
 @media(max-height:880px) and (min-width:980px){.sidebar-note{display:none}.sidebar-bottom{padding-top:20px}.sidebar nav{gap:3px}.nav-label{margin-top:24px}.sidebar{padding-block:24px}}
 @media(max-width:1250px){.trip-grid{grid-template-columns:1fr}.trip-card{display:block}.trip-card>.small{margin:8px 0}.hour-bars{max-width:100%}.field-intro-stats{gap:20px}.field-intro{gap:24px}.planner-controls{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:740px){.field-intro{display:block;padding:24px}.field-intro-stats{margin-top:24px;border-top:1px solid #456352;padding-top:20px;justify-content:space-between;gap:12px}.field-tabs{gap:18px}.field-tabs button{flex-direction:column;gap:5px;flex:1;font-size:12px}.field-tabs .live-dot{display:none}.planner-controls{grid-template-columns:1fr 1fr;padding:18px}.planner-controls>.field-label:first-child{grid-column:1/-1}.session-grid,.inventory-layout,.coach-layout,.session-start{grid-template-columns:1fr;gap:18px}.session-start{padding:24px}.more-grid{grid-template-columns:1fr}.field-intro-stats span{font-size:11px}.session-clock{font-size:64px}.coach-main .button{white-space:normal}.session-console .section-heading{flex-wrap:wrap}.trip-card{padding:20px}.field-explainer{line-height:1.6}}
+/* Two-word brand remains readable at narrow phone and sidebar widths. */
+.brand > span { font-size: 17px; line-height: 1.2; }
+.brand svg, .mobile-brand svg { flex-shrink: 0; }
+.mobile-brand { font-size: 15px; white-space: nowrap; }

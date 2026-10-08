@@ -12,7 +12,7 @@ const id = v => typeof v === "string" && /^[a-zA-Z0-9_-]{1,100}$/.test(v);
 const integer = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
 export const validDate = v => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) && !isNaN(new Date(v + "T12:00:00Z")) && new Date(v + "T12:00:00Z").toISOString().slice(0, 10) === v;
 export function validateField(input) {
-  if (!input || input.version !== 1 || !Array.isArray(input.flies) || input.flies.length > 200) fail("Choose a valid TightLines field-book backup (maximum 200 fly patterns).");
+  if (!input || input.version !== 1 || !Array.isArray(input.flies) || input.flies.length > 200) fail("Choose a valid Pocket Ghillie field-book backup (maximum 200 fly patterns).");
   const p = input.plan;
   if (!p || !validDate(p.date) || !integer(p.start, 0, 23) || !integer(p.end, 1, 24) || p.end <= p.start || !integer(p.radius, 5, 150) || !["bank", "boat"].includes(p.mode)) fail("Choose a valid date, fishing hours, radius and bank/boat preference.");
   const flies = input.flies.map(f => {

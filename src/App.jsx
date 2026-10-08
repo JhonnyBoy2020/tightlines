@@ -23,7 +23,7 @@ import useFieldBook from "./lib/useFieldBook.js";
 import "./field.css";
 
 /* ============================================================
-   TIGHTLINES UK — live stillwater trout conditions
+   POCKET GHILLIE — live stillwater trout conditions
    Data: Open-Meteo hourly feed (no key) → sample fallback
    ============================================================ */
 
@@ -40,7 +40,7 @@ function useOnline() {
 }
 
 const Logo = ({ size = 26 }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-label="TightLines logo">
+  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-label="Pocket Ghillie logo">
     <path d="M4 22c5-9 13-14 24-14" stroke={C.cyan} strokeWidth="2.4" strokeLinecap="round" />
     <path d="M28 8v9a4 4 0 0 1-8 0" stroke={C.text} strokeWidth="2.4" strokeLinecap="round" />
     <circle cx="6" cy="25" r="2.2" fill={C.cyan} />
@@ -55,7 +55,7 @@ function InstallHint({ onClose }) {
     <div style={{ ...panel, padding: "12px 14px", marginBottom: 10, display: "flex", gap: 10, alignItems: "flex-start", borderColor: "rgba(79,214,200,0.35)" }}>
       <Logo size={30} />
       <div style={{ flex: 1, fontSize: 13, lineHeight: 1.45 }}>
-        <b>Put TightLines on your iPhone</b><br />
+        <b>Put Pocket Ghillie on your iPhone</b><br />
         <span style={{ color: C.muted }}>Tap the Share button <span style={{ color: C.cyan }}>⬆</span> in Safari, then <b style={{ color: C.text }}>Add to Home Screen</b>. It opens full-screen like an app and works offline with your last forecast.</span>
       </div>
       <button aria-label="Dismiss" onClick={onClose} style={{ border: "none", background: "transparent", color: C.muted, fontSize: 18, cursor: "pointer" }}>×</button>
@@ -185,7 +185,7 @@ export default function App() {
   function go(s) { setScreen(s); setVenueId(null); window.scrollTo(0, 0); }
 
   async function shareVerdict() {
-    const text = `${venue.name} — ${dateStr(day.date)}: ${day.result.score}/10, ${day.result.verdict}. Best window ${pad2(win.start)}:00–${pad2(win.end)}:00. Water ~${Math.round(day.result.water)}°C, ${day.dir} ${day.wind} mph, ${day.cloud}% cloud${day.pMean ? `, ${Math.round(day.pMean)} hPa ${PRESS[day.press].label}` : ""}. "${day.result.tip}" — TightLines UK`;
+    const text = `${venue.name} — ${dateStr(day.date)}: ${day.result.score}/10, ${day.result.verdict}. Best window ${pad2(win.start)}:00–${pad2(win.end)}:00. Water ~${Math.round(day.result.water)}°C, ${day.dir} ${day.wind} mph, ${day.cloud}% cloud${day.pMean ? `, ${Math.round(day.pMean)} hPa ${PRESS[day.press].label}` : ""}. "${day.result.tip}" — Pocket Ghillie`;
     try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); } } catch (e) { /* closed */ }
   }
 
@@ -535,17 +535,17 @@ export default function App() {
   return <div className="app-shell">
     <a className="skip-link" href="#main">Skip to content</a>
     <aside className="sidebar">
-      <button className="brand" onClick={() => go("today")} aria-label="TightLines overview"><Logo size={34} /><span>TIGHTLINES<small>THE ANGLER'S FIELD GUIDE</small></span></button>
+      <button className="brand" onClick={() => go("today")} aria-label="Pocket Ghillie overview"><Logo size={34} /><span>POCKET GHILLIE<small>THE ANGLER'S FIELD GUIDE</small></span></button>
       <p className="nav-label">OUT ON THE WATER</p>
       <nav aria-label="Main navigation">{NAV.map(([k, title, Icon]) => <button key={k} className={`nav-item ${screen === k && !venue ? "active" : ""}`} onClick={() => go(k)}><Icon size={19} /><span>{title}</span>{k === "reports" && <span className="nav-count">1</span>}</button>)}</nav>
-      <div className="sidebar-bottom"><div className="sidebar-note"><Waves size={22} /><p>Less guesswork.<br />More time on the water.</p><span>South East England</span></div><button className={`nav-item ${screen === "settings" ? "active" : ""}`} onClick={() => go("settings")}><Bell size={18} />Alerts & sync</button><p className="sidebar-version">TIGHTLINES UK · FIELD EDITION 04</p></div>
+      <div className="sidebar-bottom"><div className="sidebar-note"><Waves size={22} /><p>Less guesswork.<br />More time on the water.</p><span>South East England</span></div><button className={`nav-item ${screen === "settings" ? "active" : ""}`} onClick={() => go("settings")}><Bell size={18} />Alerts & sync</button><p className="sidebar-version">POCKET GHILLIE · FIELD EDITION 04</p></div>
     </aside>
     <div className="workspace">
-      <header className="topbar"><div className="topbar-title"><button className="mobile-brand" onClick={() => go("today")}><Logo />TIGHTLINES</button><span className="desktop-crumb">Your field guide <span>/</span> {venue ? venue.name : NAV.find(n => n[0] === screen)?.[1] || "Alerts & sync"}</span></div><div className="topbar-actions"><span className="topbar-date">{new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" })}</span><button className="icon-button" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={() => setTheme(theme === "light" ? "dark" : "light")}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}</button><button className="icon-button" aria-label="Alerts and sync" onClick={() => go("settings")}><Bell size={19} /></button></div></header>
+      <header className="topbar"><div className="topbar-title"><button className="mobile-brand" onClick={() => go("today")}><Logo />POCKET GHILLIE</button><span className="desktop-crumb">Your field guide <span>/</span> {venue ? venue.name : NAV.find(n => n[0] === screen)?.[1] || "Alerts & sync"}</span></div><div className="topbar-actions"><span className="topbar-date">{new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" })}</span><button className="icon-button" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={() => setTheme(theme === "light" ? "dark" : "light")}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}</button><button className="icon-button" aria-label="Alerts and sync" onClick={() => go("settings")}><Bell size={19} /></button></div></header>
       <main id="main" tabIndex="-1" className="main-content">
         {!online && <div className="inline-error">You're offline. Cached forecasts may be out of date; river readings and cloud sync require a connection.</div>}
         {body}
-        <footer className="app-footer"><span>TIGHTLINES UK <span>For the days worth getting up for.</span></span><span>Forecasts: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Model scores, not catch guarantees</span></footer>
+        <footer className="app-footer"><span>POCKET GHILLIE <span>For the days worth getting up for.</span></span><span>Forecasts: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Model scores, not catch guarantees</span></footer>
       </main>
     </div>
     <nav className="mobile-nav" aria-label="Mobile navigation">{MOBILE_NAV.map(([k, title, Icon]) => <button key={k} className={(screen === k || k === "more" && ["map", "rivers", "reports", "guide", "settings"].includes(screen)) && !venue ? "active" : ""} onClick={() => go(k)}><Icon size={19} /><span>{title}</span></button>)}</nav>

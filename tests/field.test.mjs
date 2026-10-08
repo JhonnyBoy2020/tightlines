@@ -5,10 +5,15 @@ import os from "node:os";
 import path from "node:path";
 import { handler } from "../server/service.mjs";
 import { store } from "../server/storage.mjs";
-import { claimQuota, buildEvidence, aiStatus, coach } from "../server/ai.mjs";
+import { claimQuota, buildEvidence, aiStatus, coach, reasoningOptions } from "../server/ai.mjs";
 import { emptyField, validateField, elapsedMs, rankTrips, validDate } from "../src/lib/field.js";
 import { VENUES, DEFAULT_HOME } from "../src/data/venues.js";
 const root = await mkdtemp(path.join(os.tmpdir(), "tl-field-test-"));
+test("reasoning configuration is optional and validated", () => {
+  assert.deepEqual(reasoningOptions(""), {});
+  assert.deepEqual(reasoningOptions("low"), { reasoning: { effort: "low" } });
+  assert.throws(() => reasoningOptions("invalid"), /Invalid AI reasoning/);
+});
 process.env.TL_PREVIEW_DATA = root;
 const call = async (route, key, data, method) => {
   const r = await handler(new Request("https://test.local/api" + route, { method: method || (data ? "POST" : "GET"), headers: { ...(key ? { Authorization: `Bearer ${key}` } : {}) }, ...(data ? { body: JSON.stringify(data) } : {}) }));
