@@ -1,7 +1,7 @@
 import express from "express";
 import { handler } from "./service.mjs";
 const app = express();
-app.use(express.text({ type: "*/*", limit: "350kb" }));
+app.use(express.text({ type: "*/*", limit: "2mb" }));
 app.use("/api", async (req, res) => {
   const request = new Request(`http://${req.headers.host}/api${req.url}`, {
     method: req.method, headers: req.headers,

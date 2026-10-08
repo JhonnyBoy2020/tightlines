@@ -5,13 +5,16 @@ import { MONTH_GUIDE } from "../data/guide.js";
 import { REPORTS } from "../data/reports.js";
 import { api, downloadJSON } from "../lib/cloud.js";
 import { elapsedMs, londonDate, rankTrips, validateField } from "../lib/field.js";
+import TackleLab from "./TackleLab.jsx";
+import Intelligence from "./Intelligence.jsx";
+import { tackleById } from "../data/tackle.js";
 
 const hours = h => `${String(h).padStart(2, "0")}:00`;
 const tabs = [["plan", "Trip planner", Compass], ["session", "Session", Timer], ["box", "My fly box", Package], ["coach", "AI coach", Sparkles]];
 const dateLabel = date => new Date(date + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" });
 
-export default function FieldBook({ book, cloud, feeds, home, log, onSaveLog, onOpen, openCloud, forecastLoading }) {
-  const [tab, setTab] = useState("plan"), [notice, setNotice] = useState(""), [localError, setLocalError] = useState(""), [restore, setRestore] = useState(null), [loadConfirm, setLoadConfirm] = useState(false), [clock, setClock] = useState(Date.now());
+export default function FieldBook({ book, cloud, feeds, home, log, onSaveLog, onOpen, openCloud, forecastLoading, initialTab = "plan", intelligenceProps }) {
+  const [tab, setTab] = useState(initialTab), [notice, setNotice] = useState(""), [localError, setLocalError] = useState(""), [restore, setRestore] = useState(null), [loadConfirm, setLoadConfirm] = useState(false), [clock, setClock] = useState(Date.now());
   const { data, change } = book, fileRef = useRef();
   useEffect(() => { const timer = setInterval(() => setClock(Date.now()), 60000); return () => clearInterval(timer); }, []);
   const shortlist = useMemo(() => rankTrips(VENUES, feeds, home, data.plan, clock), [feeds, home, data.plan, clock]);
@@ -40,6 +43,7 @@ export default function FieldBook({ book, cloud, feeds, home, log, onSaveLog, on
     <div className="field-tabs" role="tablist" aria-label="Field book tools">{tabs.map(([id, name, Icon]) => <button key={id} role="tab" id={`tab-${id}`} aria-controls="field-panel" aria-selected={tab === id} onClick={() => setTab(id)} className={tab === id ? "active" : ""}><Icon size={18} />{name}{id === "session" && data.session && <span className="live-dot" />}</button>)}</div>
     <section id="field-panel" role="tabpanel" aria-labelledby={`tab-${tab}`}>
       {tab === "plan" && <>
+        <Intelligence {...intelligenceProps} openTackle={() => setTab("box")} />
         <div className="planner-controls panel">
           <label className="field-label">Fishing day<input type="date" value={data.plan.date} onChange={e => updatePlan({ date: e.target.value || londonDate() })} /></label>
           <label className="field-label">Start (UK time)<select value={data.plan.start} onChange={e => { const start = +e.target.value; updatePlan({ start, end: Math.max(start + 1, data.plan.end) }); }}>{Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{hours(h)}</option>)}</select></label>
@@ -65,7 +69,7 @@ export default function FieldBook({ book, cloud, feeds, home, log, onSaveLog, on
         {REPORTS.filter(r => r.type === "closure").map(r => <p key={r.id} className="small muted field-explainer">Excluded notice: <a href={r.url} target="_blank" rel="noreferrer">{r.title}</a> · checked {r.checkedAt}; confirm reopening directly.</p>)}
       </>}
       {tab === "session" && <Session session={data.session} flies={data.flies} change={change} start={start} log={log} onSaveLog={onSaveLog} setNotice={setNotice} />}
-      {tab === "box" && <FlyInventory flies={data.flies} change={change} month={new Date(data.plan.date + "T12:00:00Z").getUTCMonth()} />}
+      {tab === "box" && <TackleLab flies={data.flies} change={change} cloud={cloud} openCloud={openCloud} session={data.session} />}
       {tab === "coach" && <Coach cloud={cloud} openCloud={openCloud} plan={data.plan} shortlist={shortlist} flies={data.flies} log={log} />}
     </section>
     <section className="panel field-save">
@@ -117,6 +121,7 @@ function Session({ session: s, flies, change, start, log, onSaveLog, setNotice }
       {finishing && <div className="notice-strip compact"><div><p>Finish with {fish} fish and {missed} missed takes? A zero-catch trip will be saved as a blank session. No forecast will be presented as an on-site measurement.</p><div className="button-row"><button className="button primary" onClick={finish}>Confirm finish</button><button className="text-button" onClick={() => setFinishing(false)}>Keep fishing</button></div></div></div>}
     </section>
     <aside className="panel"><h2>What is on your leader?</h2><label className="field-label field-spacing">Fly pattern<input value={fly} list="owned-flies" maxLength={120} onChange={e => setFly(e.target.value)} placeholder="Choose or enter a pattern" /><datalist id="owned-flies">{flies.filter(f => f.quantity > 0).map(f => <option key={f.id} value={`${f.name}${f.size ? ` #${f.size}` : ""}`} />)}</datalist></label><button className="button secondary" disabled={!fly.trim() || !s.running || s.events.length >= 500} onClick={() => event("fly")}>Record fly change</button>
+      <div className="session-fly-photos">{flies.filter(f => f.quantity > 0).map(f => { const t = tackleById(f.catalogueId); return <button key={f.id} className={fly === `${f.name}${f.size ? ` #${f.size}` : ""}` ? "selected" : ""} onClick={() => setFly(`${f.name}${f.size ? ` #${f.size}` : ""}`)}>{t ? <img src={t.image} alt={f.name} /> : <Package size={24} />}<span>{f.name}<small>{f.size ? `Hook #${f.size}` : "Hook size unknown"}</small></span></button>; })}</div>
       <h3 className="field-spacing">Session timeline</h3><ol className="event-list">{[...s.events].reverse().slice(0, 12).map(e => <li key={e.id}><time>{new Date(e.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}</time><span>{e.type === "catch" ? "Fish landed" : e.type === "missed" ? "Missed take" : "Changed fly"}<small>{e.fly || "Fly not recorded"}</small></span></li>)}</ol>{!s.events.length && <p className="empty-inline">Your first cast is a good place to start.</p>}
     </aside>
   </div>;

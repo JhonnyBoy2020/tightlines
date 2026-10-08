@@ -1,5 +1,5 @@
 /* Pocket Ghillie service worker: existing data identities are preserved. */
-const VERSION = "tl-v4-pocket-ghillie";
+const VERSION = "tl-v4-pocket-ghillie-lens";
 const SHELL = `${VERSION}-shell`, DATA = `${VERSION}-data`, TILES = `${VERSION}-tiles`;
 const MAX_TILES = 600;
 

@@ -9,6 +9,7 @@ import { venueStatus } from "../src/lib/util.js";
 import { deployment } from "./deployment-context.generated.js";
 import { validateField } from "../src/lib/field.js";
 import { aiStatus, coach } from "./ai.mjs";
+import { identifyTackle } from "./vision.mjs";
 
 const sha = text => createHash("sha256").update(text).digest("hex");
 const bad = (message, status = 400) => Object.assign(new Error(message), { status });
@@ -34,9 +35,9 @@ async function auth(req) {
   if (!await store().get(`vault/${id}`, { type: "json" })) throw bad("This logbook key was not found on this host. Check the key and website.", 401);
   return id;
 }
-async function body(req) {
+async function body(req, limit = 300000) {
   const raw = await req.text();
-  if (raw.length > 300000) throw bad("This request is too large.", 413);
+  if (raw.length > limit) throw bad("This request is too large.", 413);
   try { return JSON.parse(raw); } catch { throw bad("Invalid JSON."); }
 }
 export async function pushKeys() {
@@ -93,6 +94,7 @@ export async function handler(req) {
       return json({ key }, 201);
     }
     const vault = await auth(req), db = store(), prefix = `records/${vault}/`;
+    if (route === "/ai/identify" && req.method === "POST") return json(await identifyTackle(await body(req, 1900000), vault, db));
     if (route === "/ai/brief" && req.method === "POST") return json(await coach(await body(req), vault, db));
     if (route === "/field") {
       const key = `field/${vault}`, old = await db.getWithMetadata(key, { type: "json" });

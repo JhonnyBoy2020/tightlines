@@ -3,6 +3,7 @@ import { closureFor } from "../data/reports.js";
 import { milesFrom, venueStatus } from "./util.js";
 import { scoreWeek, hourlyIndex } from "./score.js";
 import { sunTimes } from "./astro.js";
+import { tackleById } from "../data/tackle.js";
 
 export const londonDate = (date = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(date);
 export const emptyField = () => ({ version: 1, flies: [], plan: { date: londonDate(), start: 9, end: 15, radius: 40, mode: "bank" }, session: null });
@@ -17,7 +18,11 @@ export function validateField(input) {
   if (!p || !validDate(p.date) || !integer(p.start, 0, 23) || !integer(p.end, 1, 24) || p.end <= p.start || !integer(p.radius, 5, 150) || !["bank", "boat"].includes(p.mode)) fail("Choose a valid date, fishing hours, radius and bank/boat preference.");
   const flies = input.flies.map(f => {
     if (!id(f.id) || !str(f.name) || !integer(f.quantity, 0, 999)) fail("Each fly needs a name and a whole-number quantity (0–999).");
-    return { id: f.id, name: str(f.name), size: str(f.size, 20), colour: str(f.colour, 40), quantity: f.quantity };
+    if (f.catalogueId && !tackleById(f.catalogueId)) fail("Unknown tackle catalogue reference.");
+    if (f.lengthMm != null && (!Number.isFinite(f.lengthMm) || f.lengthMm <= 0 || f.lengthMm > 1000)) fail("Invalid measured length.");
+    return { id: f.id, name: str(f.name), size: str(f.size, 20), colour: str(f.colour, 40), quantity: f.quantity,
+      ...(f.catalogueId ? { catalogueId: f.catalogueId } : {}),
+      ...(f.lengthMm != null ? { lengthMm: f.lengthMm, lengthMethod: "user-calibrated photo estimate" } : {}) };
   });
   if (new Set(flies.map(f => f.id)).size !== flies.length) fail("Duplicate fly IDs in backup.");
   let session = null;

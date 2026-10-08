@@ -20,6 +20,8 @@ import useCloud from "./lib/useCloud.js";
 import { closureFor } from "./data/reports.js";
 import FieldBook from "./components/FieldBook.jsx";
 import useFieldBook from "./lib/useFieldBook.js";
+import { emptyIntelligence } from "./components/Intelligence.jsx";
+import "./intelligence.css";
 import "./field.css";
 
 /* ============================================================
@@ -96,6 +98,10 @@ export default function App() {
   function applyLog(next) { setLog(next); LS.set("tl-log", next); }
   const cloud = useCloud(log, applyLog);
   const fieldBook = useFieldBook(cloud.key);
+  const [intelligence, setIntelligence] = useState(emptyIntelligence);
+  const [riverForAI, setRiverForAI] = useState(null);
+  const [fieldTab, setFieldTab] = useState("plan");
+  useEffect(() => { setIntelligence(emptyIntelligence()); }, [cloud.key]);
   function saveLog(next) {
     log.filter(l => !next.some(n => String(n.id) === String(l.id))).forEach(l => cloud.markDeleted(l.id));
     applyLog(next);
@@ -503,12 +509,14 @@ export default function App() {
   );
 
   /* ---------------- Screens ---------------- */
+  const openTackle = () => { setFieldTab("box"); go("field"); };
+  const intelligenceProps = { book: fieldBook, cloud, feeds, home, log, river: riverForAI, state: intelligence, setState: setIntelligence, openCloud: () => go("settings"), openTackle, openRivers: () => go("rivers") };
   let body;
   if (venue) body = venueView;
-  else if (screen === "today") body = <Dashboard items={all} feeds={feeds} home={home} radius={radius} onOpen={openVenue} go={go} log={log} favs={favs} loading={!!bulk} />;
-  else if (screen === "field") body = <FieldBook book={fieldBook} cloud={cloud} feeds={feeds} home={home} log={log} onSaveLog={saveLog} onOpen={openVenue} openCloud={() => go("settings")} forecastLoading={!!bulk} />;
+  else if (screen === "today") body = <Dashboard items={all} feeds={feeds} home={home} radius={radius} onOpen={openVenue} go={go} log={log} favs={favs} loading={!!bulk} intelligenceProps={intelligenceProps} />;
+  else if (screen === "field") body = <FieldBook book={fieldBook} cloud={cloud} feeds={feeds} home={home} log={log} onSaveLog={saveLog} onOpen={openVenue} openCloud={() => go("settings")} forecastLoading={!!bulk} initialTab={fieldTab} intelligenceProps={intelligenceProps} />;
   else if (screen === "more") body = <><div className="page-heading"><div><p className="eyebrow">YOUR FIELD GUIDE</p><h1>Explore a little further.</h1><p>Maps, river observations, reports and practical seasonal guidance.</p></div></div><div className="more-grid">{[...NAV.filter(n => ["map", "rivers", "reports", "guide"].includes(n[0])), ["settings", "Alerts & sync", Bell]].map(([id, label, Icon]) => <button className="panel more-card" key={id} onClick={() => go(id)}><Icon size={26} /><span>{label}</span><ArrowRight size={18} /></button>)}</div></>;
-  else if (screen === "rivers") body = <Rivers home={home} />;
+  else if (screen === "rivers") body = <Rivers home={home} onUseGauge={setRiverForAI} selectedGauge={riverForAI} />;
   else if (screen === "reports") body = <Reports cloudKey={cloud.key} openCloud={() => go("settings")} />;
   else if (screen === "settings") body = <CloudSettings cloud={cloud} favs={favs} log={log} />;
   else if (screen === "map") body = (
@@ -519,7 +527,7 @@ export default function App() {
       <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Pins show each water's score for the chosen day. Faded pins sit outside your {radius}-mile radius. Tap a pin for details, and use the top-right control to switch between dark, satellite and street maps.</div>
     </>
   );
-  else if (screen === "guide") body = <Guide />;
+  else if (screen === "guide") body = <Guide openTackle={openTackle} />;
   else if (screen === "log") body = <><div className="page-heading"><div><p className="eyebrow">YOUR OWN BEST EVIDENCE</p><h1>The fishing journal.</h1><p>Build a picture of the waters, flies and conditions that work for you.</p></div><button className="button secondary" onClick={() => go("settings")}><Cloud size={16} />{cloud.key ? cloud.status : "Sync across devices"}</button></div><LogScreen log={log} onDelete={(id) => saveLog(log.filter((x) => x.id !== id))} onOpenVenue={(id) => { setScreen("waters"); openVenue(id); }} /></>;
   else body = wide ? (
     <div style={{ display: "grid", gridTemplateColumns: "440px minmax(0,1fr)", gap: 16, alignItems: "start" }}>
