@@ -3,6 +3,17 @@ import { mkdir, readFile, writeFile, rename, readdir, unlink } from "node:fs/pro
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { deployment } from "./deployment-context.generated.js";
+const locks = new Map();
+async function locked(key, operation) {
+  const previous = locks.get(key) || Promise.resolve();
+  let release;
+  const hold = new Promise(resolve => { release = resolve; });
+  const tail = previous.then(() => hold);
+  locks.set(key, tail);
+  await previous;
+  try { return await operation(); }
+  finally { release(); if (locks.get(key) === tail) locks.delete(key); }
+}
 
 // Netlify uses managed durable Blobs. The sandbox preview uses disk, not a pretend cloud.
 // Separate namespaces prevent preview records/subscriptions touching production.
@@ -15,6 +26,7 @@ export function store() {
     async get(key) { return (await get(key))?.data ?? null; },
     async getWithMetadata(key) { return get(key); },
     async setJSON(key, data, options = {}) {
+      return locked(file(key), async () => {
       await mkdir(root, { recursive: true, mode: 0o700 });
       const old = await get(key);
       if (options.onlyIfNew && old || options.onlyIfMatch && old?.etag !== options.onlyIfMatch) return { modified: false };
@@ -23,6 +35,7 @@ export function store() {
       await writeFile(temp, JSON.stringify({ data, etag }), { mode: 0o600 });
       await rename(temp, file(key));
       return { modified: true, etag };
+      });
     },
     async delete(key) { await unlink(file(key)).catch(e => { if (e.code !== "ENOENT") throw e; }); },
     async list({ prefix = "" } = {}) {

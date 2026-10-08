@@ -1,5 +1,5 @@
 /* TightLines service worker — app shell offline, last forecast offline, map tiles cached */
-const VERSION = "tl-v3";
+const VERSION = "tl-v4";
 const SHELL = `${VERSION}-shell`, DATA = `${VERSION}-data`, TILES = `${VERSION}-tiles`;
 const MAX_TILES = 600;
 

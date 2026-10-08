@@ -11,13 +11,16 @@ import { WatersMap, VenueMap } from "./components/Maps.jsx";
 import { NowCard, PressureChart, SolunarCard, HourlyTable } from "./components/Conditions.jsx";
 import Guide, { MonthCard } from "./components/Guide.jsx";
 import LogScreen, { LogForm, LogEntry } from "./components/Log.jsx";
-import { LayoutDashboard, Map, MapPin, Waves, FileText, BookOpen, NotebookPen, Bell, Sun, Moon, ArrowRight, Cloud } from "lucide-react";
+import { LayoutDashboard, Map, MapPin, Waves, FileText, BookOpen, NotebookPen, Bell, Sun, Moon, ArrowRight, Cloud, Compass, Menu } from "lucide-react";
 import Dashboard from "./components/Dashboard.jsx";
 import Rivers from "./components/Rivers.jsx";
 import Reports from "./components/Reports.jsx";
 import CloudSettings from "./components/CloudSettings.jsx";
 import useCloud from "./lib/useCloud.js";
 import { closureFor } from "./data/reports.js";
+import FieldBook from "./components/FieldBook.jsx";
+import useFieldBook from "./lib/useFieldBook.js";
+import "./field.css";
 
 /* ============================================================
    TIGHTLINES UK — live stillwater trout conditions
@@ -44,7 +47,8 @@ const Logo = ({ size = 26 }) => (
   </svg>
 );
 
-const NAV = [["today", "Overview", LayoutDashboard], ["waters", "Explore waters", MapPin], ["map", "Water map", Map], ["rivers", "River levels", Waves], ["reports", "Fishery reports", FileText], ["guide", "Fly guide", BookOpen], ["log", "My journal", NotebookPen]];
+const NAV = [["today", "Overview", LayoutDashboard], ["waters", "Explore waters", MapPin], ["field", "Plan & fish", Compass], ["map", "Water map", Map], ["rivers", "River levels", Waves], ["reports", "Fishery reports", FileText], ["guide", "Fly guide", BookOpen], ["log", "My journal", NotebookPen]];
+const MOBILE_NAV = [["today", "Today", LayoutDashboard], ["waters", "Waters", MapPin], ["field", "Plan & fish", Compass], ["log", "Journal", NotebookPen], ["more", "More", Menu]];
 
 function InstallHint({ onClose }) {
   return (
@@ -91,6 +95,7 @@ export default function App() {
   useEffect(() => { LS.set("tl-favs", favs); }, [favs]);
   function applyLog(next) { setLog(next); LS.set("tl-log", next); }
   const cloud = useCloud(log, applyLog);
+  const fieldBook = useFieldBook(cloud.key);
   function saveLog(next) {
     log.filter(l => !next.some(n => String(n.id) === String(l.id))).forEach(l => cloud.markDeleted(l.id));
     applyLog(next);
@@ -154,7 +159,7 @@ export default function App() {
   const liveCount = inRadius.filter((x) => x.live).length;
 
   // Auto-load any waters in range that don't have a live feed yet (first open and when the radius grows)
-  const loadScope = screen === "map" || wide ? all : inRadius; // the map shows every water, so load them all there
+  const loadScope = screen === "map" || screen === "field" || wide ? all : inRadius; // planner radius can extend beyond the overview
   const missingKey = loadScope.filter((x) => !feeds[x.v.id] && !loading[x.v.id] && !errors[x.v.id]).map((x) => x.v.id).join(",");
   useEffect(() => {
     if (!missingKey || bulk) return;
@@ -501,6 +506,8 @@ export default function App() {
   let body;
   if (venue) body = venueView;
   else if (screen === "today") body = <Dashboard items={all} feeds={feeds} home={home} radius={radius} onOpen={openVenue} go={go} log={log} favs={favs} loading={!!bulk} />;
+  else if (screen === "field") body = <FieldBook book={fieldBook} cloud={cloud} feeds={feeds} home={home} log={log} onSaveLog={saveLog} onOpen={openVenue} openCloud={() => go("settings")} forecastLoading={!!bulk} />;
+  else if (screen === "more") body = <><div className="page-heading"><div><p className="eyebrow">YOUR FIELD GUIDE</p><h1>Explore a little further.</h1><p>Maps, river observations, reports and practical seasonal guidance.</p></div></div><div className="more-grid">{[...NAV.filter(n => ["map", "rivers", "reports", "guide"].includes(n[0])), ["settings", "Alerts & sync", Bell]].map(([id, label, Icon]) => <button className="panel more-card" key={id} onClick={() => go(id)}><Icon size={26} /><span>{label}</span><ArrowRight size={18} /></button>)}</div></>;
   else if (screen === "rivers") body = <Rivers home={home} />;
   else if (screen === "reports") body = <Reports cloudKey={cloud.key} openCloud={() => go("settings")} />;
   else if (screen === "settings") body = <CloudSettings cloud={cloud} favs={favs} log={log} />;
@@ -531,7 +538,7 @@ export default function App() {
       <button className="brand" onClick={() => go("today")} aria-label="TightLines overview"><Logo size={34} /><span>TIGHTLINES<small>THE ANGLER'S FIELD GUIDE</small></span></button>
       <p className="nav-label">OUT ON THE WATER</p>
       <nav aria-label="Main navigation">{NAV.map(([k, title, Icon]) => <button key={k} className={`nav-item ${screen === k && !venue ? "active" : ""}`} onClick={() => go(k)}><Icon size={19} /><span>{title}</span>{k === "reports" && <span className="nav-count">1</span>}</button>)}</nav>
-      <div className="sidebar-bottom"><div className="sidebar-note"><Waves size={22} /><p>Less guesswork.<br />More time on the water.</p><span>South East England</span></div><button className={`nav-item ${screen === "settings" ? "active" : ""}`} onClick={() => go("settings")}><Bell size={18} />Alerts & sync</button><p className="sidebar-version">TIGHTLINES UK · FIELD EDITION 03</p></div>
+      <div className="sidebar-bottom"><div className="sidebar-note"><Waves size={22} /><p>Less guesswork.<br />More time on the water.</p><span>South East England</span></div><button className={`nav-item ${screen === "settings" ? "active" : ""}`} onClick={() => go("settings")}><Bell size={18} />Alerts & sync</button><p className="sidebar-version">TIGHTLINES UK · FIELD EDITION 04</p></div>
     </aside>
     <div className="workspace">
       <header className="topbar"><div className="topbar-title"><button className="mobile-brand" onClick={() => go("today")}><Logo />TIGHTLINES</button><span className="desktop-crumb">Your field guide <span>/</span> {venue ? venue.name : NAV.find(n => n[0] === screen)?.[1] || "Alerts & sync"}</span></div><div className="topbar-actions"><span className="topbar-date">{new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" })}</span><button className="icon-button" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={() => setTheme(theme === "light" ? "dark" : "light")}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}</button><button className="icon-button" aria-label="Alerts and sync" onClick={() => go("settings")}><Bell size={19} /></button></div></header>
@@ -541,6 +548,6 @@ export default function App() {
         <footer className="app-footer"><span>TIGHTLINES UK <span>For the days worth getting up for.</span></span><span>Forecasts: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Model scores, not catch guarantees</span></footer>
       </main>
     </div>
-    <nav className="mobile-nav" aria-label="Mobile navigation">{NAV.map(([k, title, Icon]) => <button key={k} className={screen === k && !venue ? "active" : ""} onClick={() => go(k)}><Icon size={19} /><span>{{ today: "Today", waters: "Waters", map: "Map", rivers: "Rivers", reports: "Reports", guide: "Guide", log: "Journal" }[k]}</span></button>)}</nav>
+    <nav className="mobile-nav" aria-label="Mobile navigation">{MOBILE_NAV.map(([k, title, Icon]) => <button key={k} className={(screen === k || k === "more" && ["map", "rivers", "reports", "guide", "settings"].includes(screen)) && !venue ? "active" : ""} onClick={() => go(k)}><Icon size={19} /><span>{title}</span></button>)}</nav>
   </div>;
 }

@@ -1,0 +1,82 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { handler } from "../server/service.mjs";
+import { store } from "../server/storage.mjs";
+import { claimQuota, buildEvidence, aiStatus, coach } from "../server/ai.mjs";
+import { emptyField, validateField, elapsedMs, rankTrips, validDate } from "../src/lib/field.js";
+import { VENUES, DEFAULT_HOME } from "../src/data/venues.js";
+const root = await mkdtemp(path.join(os.tmpdir(), "tl-field-test-"));
+process.env.TL_PREVIEW_DATA = root;
+const call = async (route, key, data, method) => {
+  const r = await handler(new Request("https://test.local/api" + route, { method: method || (data ? "POST" : "GET"), headers: { ...(key ? { Authorization: `Bearer ${key}` } : {}) }, ...(data ? { body: JSON.stringify(data) } : {}) }));
+  return { status: r.status, data: await r.json() };
+};
+test("field book isolation, restore validation, CAS conflict and effort sync", async () => {
+  const a = (await call("/vault", null, {})).data.key, b = (await call("/vault", null, {})).data.key;
+  assert.equal((await call("/field")).status, 401);
+  const book = emptyField(); book.flies.push({ id: "buzzer-1", name: "Buzzer", size: "12", colour: "Black", quantity: 3 });
+  const first = await call("/field", a, { revision: "new", data: book }, "PUT");
+  assert.equal(first.status, 200); assert.ok(first.data.revision);
+  assert.equal((await call("/field", a)).data.data.flies.length, 1);
+  assert.equal((await call("/field", b)).data.data, null);
+  assert.equal((await call("/field", a, { revision: "new", data: book }, "PUT")).status, 409);
+  book.flies[0].quantity = -1;
+  assert.equal((await call("/field", a, { revision: first.data.revision, data: book }, "PUT")).status, 400);
+  const record = { id: "timed", venueId: "thornwood", fish: "0", date: "2026-10-08", durationMinutes: 120, missedTakes: 2 };
+  const synced = await call("/sync", a, { entries: [record] });
+  assert.equal(synced.data.records[0].durationMinutes, 120);
+  assert.equal(synced.data.records[0].fish, "0");
+  assert.equal(synced.data.records[0].missedTakes, 2);
+});
+test("blank/paused sessions and backup bounds", () => {
+  const book = emptyField();
+  assert.deepEqual(validateField(book), book);
+  assert.equal(validDate("2026-02-30"), false);
+  book.plan.end = book.plan.start;
+  assert.throws(() => validateField(book), /valid date/);
+  assert.equal(elapsedMs({ elapsed: 60000, running: false, lastStarted: 1000 }, 100000), 60000);
+  assert.equal(elapsedMs({ elapsed: 60000, running: true, lastStarted: 1000 }, 31000), 90000);
+});
+const now = new Date("2026-10-08T12:00:00Z");
+const fixture = v => ({ at: now, week: [{ date: now, hi: 15, lo: 8, cloud: 80, wind: 10, gust: 20, rain: 0, press: "steady", pMean: 1013, dir: "SW" }] });
+test("planner does not rank missing/stale/closed/unsafe forecasts and filters boats", () => {
+  const plan = { date: "2026-10-08", start: 9, end: 15, radius: 150, mode: "bank" };
+  const feeds = Object.fromEntries(VENUES.map(v => [v.id, fixture(v)]));
+  assert.equal(rankTrips(VENUES, {}, DEFAULT_HOME, plan, +now).length, 0);
+  const result = rankTrips(VENUES, feeds, DEFAULT_HOME, plan, +now);
+  assert.equal(result.length, 3); assert.ok(!result.some(x => x.v.id === "hanningfield"));
+  feeds.thornwood.stale = true;
+  assert.equal(rankTrips([VENUES[0]], feeds, DEFAULT_HOME, plan, +now).length, 0);
+  feeds.thornwood = fixture(); feeds.thornwood.week[0].thunder = true;
+  assert.equal(rankTrips([VENUES[0]], feeds, DEFAULT_HOME, plan, +now).length, 0);
+  const boats = rankTrips(VENUES, feeds, DEFAULT_HOME, { ...plan, mode: "boat" }, +now);
+  assert.ok(boats.every(x => /boats/i.test(x.v.ticket)));
+  assert.equal(rankTrips(VENUES, feeds, DEFAULT_HOME, { ...plan, date: "2027-01-01" }, +now).length, 0);
+});
+test("AI context preserves missing forecasts and dated closure evidence", async () => {
+  const result = await buildEvidence({ venueIds: ["hanningfield"], date: "2026-10-08" }, { now, fetcher: async () => ({ hanningfield: new Error("offline") }) });
+  assert.equal(result.context.waters[0].forecast, null);
+  assert.ok(result.context.notices.some(n => n.type === "closure"));
+  assert.ok(result.sources.some(s => s.url === "https://www.watersideparksuk.com/fishing/"));
+  assert.deepEqual(result.context.recentJournal.entries, []);
+  assert.equal(result.warnings.length, 2);
+});
+test("quota conditional claims resist concurrent requests", async () => {
+  const attempts = await Promise.allSettled(Array.from({ length: 8 }, () => claimQuota(store(), "quota-test", 3)));
+  assert.equal(attempts.filter(x => x.status === "fulfilled").length, 3);
+  assert.equal((await store().get("quota-test")).count, 3);
+});
+test("AI is disabled by default and consent is enforced before provider use", async () => {
+  delete process.env.AI_ENABLED;
+  assert.equal(aiStatus().enabled, false);
+  const key = (await call("/vault", null, {})).data.key;
+  assert.equal((await call("/ai/brief", key, {})).status, 503);
+  process.env.AI_ENABLED = "true"; process.env.AI_MODEL = "test-fixture"; process.env.OPENAI_API_KEY = "not-a-real-key";
+  await assert.rejects(coach({}, "fixture", store()), /consent/);
+  await assert.rejects(coach({ consent: true, question: "test", venueIds: ["not-a-water"], date: "2026-10-08" }, "fixture", store()), /Choose/);
+  delete process.env.AI_ENABLED; delete process.env.OPENAI_API_KEY;
+});
+test.after(async () => { await rm(root, { recursive: true, force: true }); });

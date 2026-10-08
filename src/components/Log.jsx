@@ -45,6 +45,7 @@ export function LogEntry({ l, onDelete, showVenue }) {
         {showVenue && <><b>{l.venueName}</b> · </>}<b>{l.date}</b> · {l.fish} fish{l.best ? ` · best ${l.best}` : ""}
         {(l.fly || l.line) && <><br /><span style={{ color: C.cyan }}>{[l.fly, l.line].filter(Boolean).join(" · ")}</span></>}
         {l.note ? <><br /><span style={{ color: C.muted }}>{l.note}</span></> : null}
+        {l.durationMinutes > 0 && <><br /><span style={{ color: C.muted }}>{l.durationMinutes} minutes fishing · {(Number(l.fish) / (l.durationMinutes / 60)).toFixed(1)} fish/hour · {l.missedTakes || 0} missed takes</span></>}
         {l.cond && <><br /><span style={{ fontFamily: F.mono, fontSize: 10, color: C.dim }}>{l.cond.press ? `${l.cond.press}hPa ${PRESS[l.cond.trend]?.glyph || ""} · ` : ""}{l.cond.water}°C water · {l.cond.dir}{l.cond.wind} · {l.cond.cloud}% cld</span></>}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
@@ -56,7 +57,7 @@ export function LogEntry({ l, onDelete, showVenue }) {
 }
 
 function toCsv(log) {
-  const cols = ["date", "venueName", "fish", "best", "fly", "line", "note", "score", "press", "trend", "water", "wind", "dir", "cloud", "moon"];
+  const cols = ["date", "venueName", "fish", "best", "fly", "line", "note", "durationMinutes", "missedTakes", "score", "press", "trend", "water", "wind", "dir", "cloud", "moon"];
   const esc = (v) => { let s = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const rows = log.map((l) => cols.map((c) => esc(l[c] ?? l.cond?.[c])).join(","));
   return [cols.join(","), ...rows].join("\n");
