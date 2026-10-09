@@ -69,7 +69,7 @@ function FoodCalendar({ month, onPick }) {
   );
 }
 
-export default function Guide() {
+export default function Guide({ openTackle }) {
   const [month, setMonth] = useState(TODAY.getMonth());
   const [ftype, setFtype] = useState("All");
   const [q, setQ] = useState("");
@@ -79,6 +79,7 @@ export default function Guide() {
   const flies = FLIES.filter((f) => (ftype === "All" || f.t.startsWith(ftype)) && (!q || (f.n + f.i).toLowerCase().includes(q.toLowerCase())));
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <section className="panel"><p className="eyebrow">NEW · VISUAL TACKLE LIBRARY</p><h2>Not sure which fly is which?</h2><p>Inspect real pattern photographs, build your own fly box, or use a photo for AI-assisted identification and calibrated measurement.</p><button className="button primary field-spacing" onClick={openTackle}>Explore photos, camera & my box</button></section>
       <div>
         <div style={{ fontFamily: F.display, fontSize: 22, fontWeight: 800 }}>Month by month</div>
         <div style={{ fontSize: 13, color: C.muted, marginTop: 3 }}>Stillwater trout in the South East — what's on the menu and what to tie on.</div>

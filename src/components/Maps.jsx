@@ -32,7 +32,7 @@ function FitRadius({ home, radius }) {
   const map = useMap();
   useEffect(() => {
     const b = L.latLng(home.lat, home.lon).toBounds(radius * 1609.34 * 2);
-    map.fitBounds(b, { padding: [10, 10] });
+    map.fitBounds(b, { padding: [10, 10], animate: false });
   }, [home.lat, home.lon, radius, map]);
   return null;
 }

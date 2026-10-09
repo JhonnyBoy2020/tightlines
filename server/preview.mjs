@@ -1,7 +1,7 @@
 import express from "express";
 import { handler } from "./service.mjs";
 const app = express();
-app.use(express.text({ type: "*/*", limit: "350kb" }));
+app.use(express.text({ type: "*/*", limit: "2mb" }));
 app.use("/api", async (req, res) => {
   const request = new Request(`http://${req.headers.host}/api${req.url}`, {
     method: req.method, headers: req.headers,
@@ -12,4 +12,4 @@ app.use("/api", async (req, res) => {
   result.headers.forEach((value, key) => res.setHeader(key, value));
   res.send(await result.text());
 });
-app.listen(5000, "0.0.0.0", () => console.log("TightLines private preview API on 5000"));
+app.listen(5000, "0.0.0.0", () => console.log("Pocket Ghillie private preview API on 5000"));

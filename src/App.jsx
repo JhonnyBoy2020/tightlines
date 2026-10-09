@@ -11,16 +11,21 @@ import { WatersMap, VenueMap } from "./components/Maps.jsx";
 import { NowCard, PressureChart, SolunarCard, HourlyTable } from "./components/Conditions.jsx";
 import Guide, { MonthCard } from "./components/Guide.jsx";
 import LogScreen, { LogForm, LogEntry } from "./components/Log.jsx";
-import { LayoutDashboard, Map, MapPin, Waves, FileText, BookOpen, NotebookPen, Bell, Sun, Moon, ArrowRight, Cloud } from "lucide-react";
+import { LayoutDashboard, Map, MapPin, Waves, FileText, BookOpen, NotebookPen, Bell, Sun, Moon, ArrowRight, Cloud, Compass, Menu } from "lucide-react";
 import Dashboard from "./components/Dashboard.jsx";
 import Rivers from "./components/Rivers.jsx";
 import Reports from "./components/Reports.jsx";
 import CloudSettings from "./components/CloudSettings.jsx";
 import useCloud from "./lib/useCloud.js";
 import { closureFor } from "./data/reports.js";
+import FieldBook from "./components/FieldBook.jsx";
+import useFieldBook from "./lib/useFieldBook.js";
+import { emptyIntelligence } from "./components/Intelligence.jsx";
+import "./intelligence.css";
+import "./field.css";
 
 /* ============================================================
-   TIGHTLINES UK — live stillwater trout conditions
+   POCKET GHILLIE — live stillwater trout conditions
    Data: Open-Meteo hourly feed (no key) → sample fallback
    ============================================================ */
 
@@ -37,21 +42,22 @@ function useOnline() {
 }
 
 const Logo = ({ size = 26 }) => (
-  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-label="TightLines logo">
+  <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-label="Pocket Ghillie logo">
     <path d="M4 22c5-9 13-14 24-14" stroke={C.cyan} strokeWidth="2.4" strokeLinecap="round" />
     <path d="M28 8v9a4 4 0 0 1-8 0" stroke={C.text} strokeWidth="2.4" strokeLinecap="round" />
     <circle cx="6" cy="25" r="2.2" fill={C.cyan} />
   </svg>
 );
 
-const NAV = [["today", "Overview", LayoutDashboard], ["waters", "Explore waters", MapPin], ["map", "Water map", Map], ["rivers", "River levels", Waves], ["reports", "Fishery reports", FileText], ["guide", "Fly guide", BookOpen], ["log", "My journal", NotebookPen]];
+const NAV = [["today", "Overview", LayoutDashboard], ["waters", "Explore waters", MapPin], ["field", "Plan & fish", Compass], ["map", "Water map", Map], ["rivers", "River levels", Waves], ["reports", "Fishery reports", FileText], ["guide", "Fly guide", BookOpen], ["log", "My journal", NotebookPen]];
+const MOBILE_NAV = [["today", "Today", LayoutDashboard], ["waters", "Waters", MapPin], ["field", "Plan & fish", Compass], ["log", "Journal", NotebookPen], ["more", "More", Menu]];
 
 function InstallHint({ onClose }) {
   return (
     <div style={{ ...panel, padding: "12px 14px", marginBottom: 10, display: "flex", gap: 10, alignItems: "flex-start", borderColor: "rgba(79,214,200,0.35)" }}>
       <Logo size={30} />
       <div style={{ flex: 1, fontSize: 13, lineHeight: 1.45 }}>
-        <b>Put TightLines on your iPhone</b><br />
+        <b>Put Pocket Ghillie on your iPhone</b><br />
         <span style={{ color: C.muted }}>Tap the Share button <span style={{ color: C.cyan }}>⬆</span> in Safari, then <b style={{ color: C.text }}>Add to Home Screen</b>. It opens full-screen like an app and works offline with your last forecast.</span>
       </div>
       <button aria-label="Dismiss" onClick={onClose} style={{ border: "none", background: "transparent", color: C.muted, fontSize: 18, cursor: "pointer" }}>×</button>
@@ -91,6 +97,11 @@ export default function App() {
   useEffect(() => { LS.set("tl-favs", favs); }, [favs]);
   function applyLog(next) { setLog(next); LS.set("tl-log", next); }
   const cloud = useCloud(log, applyLog);
+  const fieldBook = useFieldBook(cloud.key);
+  const [intelligence, setIntelligence] = useState(emptyIntelligence);
+  const [riverForAI, setRiverForAI] = useState(null);
+  const [fieldTab, setFieldTab] = useState("plan");
+  useEffect(() => { setIntelligence(emptyIntelligence()); }, [cloud.key]);
   function saveLog(next) {
     log.filter(l => !next.some(n => String(n.id) === String(l.id))).forEach(l => cloud.markDeleted(l.id));
     applyLog(next);
@@ -154,7 +165,7 @@ export default function App() {
   const liveCount = inRadius.filter((x) => x.live).length;
 
   // Auto-load any waters in range that don't have a live feed yet (first open and when the radius grows)
-  const loadScope = screen === "map" || wide ? all : inRadius; // the map shows every water, so load them all there
+  const loadScope = screen === "map" || screen === "field" || wide ? all : inRadius; // planner radius can extend beyond the overview
   const missingKey = loadScope.filter((x) => !feeds[x.v.id] && !loading[x.v.id] && !errors[x.v.id]).map((x) => x.v.id).join(",");
   useEffect(() => {
     if (!missingKey || bulk) return;
@@ -180,7 +191,7 @@ export default function App() {
   function go(s) { setScreen(s); setVenueId(null); window.scrollTo(0, 0); }
 
   async function shareVerdict() {
-    const text = `${venue.name} — ${dateStr(day.date)}: ${day.result.score}/10, ${day.result.verdict}. Best window ${pad2(win.start)}:00–${pad2(win.end)}:00. Water ~${Math.round(day.result.water)}°C, ${day.dir} ${day.wind} mph, ${day.cloud}% cloud${day.pMean ? `, ${Math.round(day.pMean)} hPa ${PRESS[day.press].label}` : ""}. "${day.result.tip}" — TightLines UK`;
+    const text = `${venue.name} — ${dateStr(day.date)}: ${day.result.score}/10, ${day.result.verdict}. Best window ${pad2(win.start)}:00–${pad2(win.end)}:00. Water ~${Math.round(day.result.water)}°C, ${day.dir} ${day.wind} mph, ${day.cloud}% cloud${day.pMean ? `, ${Math.round(day.pMean)} hPa ${PRESS[day.press].label}` : ""}. "${day.result.tip}" — Pocket Ghillie`;
     try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); } } catch (e) { /* closed */ }
   }
 
@@ -498,10 +509,14 @@ export default function App() {
   );
 
   /* ---------------- Screens ---------------- */
+  const openTackle = () => { setFieldTab("box"); go("field"); };
+  const intelligenceProps = { book: fieldBook, cloud, feeds, home, log, river: riverForAI, state: intelligence, setState: setIntelligence, openCloud: () => go("settings"), openTackle, openRivers: () => go("rivers") };
   let body;
   if (venue) body = venueView;
-  else if (screen === "today") body = <Dashboard items={all} feeds={feeds} home={home} radius={radius} onOpen={openVenue} go={go} log={log} favs={favs} loading={!!bulk} />;
-  else if (screen === "rivers") body = <Rivers home={home} />;
+  else if (screen === "today") body = <Dashboard items={all} feeds={feeds} home={home} radius={radius} onOpen={openVenue} go={go} log={log} favs={favs} loading={!!bulk} intelligenceProps={intelligenceProps} />;
+  else if (screen === "field") body = <FieldBook book={fieldBook} cloud={cloud} feeds={feeds} home={home} log={log} onSaveLog={saveLog} onOpen={openVenue} openCloud={() => go("settings")} forecastLoading={!!bulk} initialTab={fieldTab} intelligenceProps={intelligenceProps} />;
+  else if (screen === "more") body = <><div className="page-heading"><div><p className="eyebrow">YOUR FIELD GUIDE</p><h1>Explore a little further.</h1><p>Maps, river observations, reports and practical seasonal guidance.</p></div></div><div className="more-grid">{[...NAV.filter(n => ["map", "rivers", "reports", "guide"].includes(n[0])), ["settings", "Alerts & sync", Bell]].map(([id, label, Icon]) => <button className="panel more-card" key={id} onClick={() => go(id)}><Icon size={26} /><span>{label}</span><ArrowRight size={18} /></button>)}</div></>;
+  else if (screen === "rivers") body = <Rivers home={home} onUseGauge={setRiverForAI} selectedGauge={riverForAI} />;
   else if (screen === "reports") body = <Reports cloudKey={cloud.key} openCloud={() => go("settings")} />;
   else if (screen === "settings") body = <CloudSettings cloud={cloud} favs={favs} log={log} />;
   else if (screen === "map") body = (
@@ -512,7 +527,7 @@ export default function App() {
       <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Pins show each water's score for the chosen day. Faded pins sit outside your {radius}-mile radius. Tap a pin for details, and use the top-right control to switch between dark, satellite and street maps.</div>
     </>
   );
-  else if (screen === "guide") body = <Guide />;
+  else if (screen === "guide") body = <Guide openTackle={openTackle} />;
   else if (screen === "log") body = <><div className="page-heading"><div><p className="eyebrow">YOUR OWN BEST EVIDENCE</p><h1>The fishing journal.</h1><p>Build a picture of the waters, flies and conditions that work for you.</p></div><button className="button secondary" onClick={() => go("settings")}><Cloud size={16} />{cloud.key ? cloud.status : "Sync across devices"}</button></div><LogScreen log={log} onDelete={(id) => saveLog(log.filter((x) => x.id !== id))} onOpenVenue={(id) => { setScreen("waters"); openVenue(id); }} /></>;
   else body = wide ? (
     <div style={{ display: "grid", gridTemplateColumns: "440px minmax(0,1fr)", gap: 16, alignItems: "start" }}>
@@ -528,19 +543,19 @@ export default function App() {
   return <div className="app-shell">
     <a className="skip-link" href="#main">Skip to content</a>
     <aside className="sidebar">
-      <button className="brand" onClick={() => go("today")} aria-label="TightLines overview"><Logo size={34} /><span>TIGHTLINES<small>THE ANGLER'S FIELD GUIDE</small></span></button>
+      <button className="brand" onClick={() => go("today")} aria-label="Pocket Ghillie overview"><Logo size={34} /><span>POCKET GHILLIE<small>THE ANGLER'S FIELD GUIDE</small></span></button>
       <p className="nav-label">OUT ON THE WATER</p>
       <nav aria-label="Main navigation">{NAV.map(([k, title, Icon]) => <button key={k} className={`nav-item ${screen === k && !venue ? "active" : ""}`} onClick={() => go(k)}><Icon size={19} /><span>{title}</span>{k === "reports" && <span className="nav-count">1</span>}</button>)}</nav>
-      <div className="sidebar-bottom"><div className="sidebar-note"><Waves size={22} /><p>Less guesswork.<br />More time on the water.</p><span>South East England</span></div><button className={`nav-item ${screen === "settings" ? "active" : ""}`} onClick={() => go("settings")}><Bell size={18} />Alerts & sync</button><p className="sidebar-version">TIGHTLINES UK · FIELD EDITION 03</p></div>
+      <div className="sidebar-bottom"><div className="sidebar-note"><Waves size={22} /><p>Less guesswork.<br />More time on the water.</p><span>South East England</span></div><button className={`nav-item ${screen === "settings" ? "active" : ""}`} onClick={() => go("settings")}><Bell size={18} />Alerts & sync</button><p className="sidebar-version">POCKET GHILLIE · FIELD EDITION 04</p></div>
     </aside>
     <div className="workspace">
-      <header className="topbar"><div className="topbar-title"><button className="mobile-brand" onClick={() => go("today")}><Logo />TIGHTLINES</button><span className="desktop-crumb">Your field guide <span>/</span> {venue ? venue.name : NAV.find(n => n[0] === screen)?.[1] || "Alerts & sync"}</span></div><div className="topbar-actions"><span className="topbar-date">{new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" })}</span><button className="icon-button" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={() => setTheme(theme === "light" ? "dark" : "light")}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}</button><button className="icon-button" aria-label="Alerts and sync" onClick={() => go("settings")}><Bell size={19} /></button></div></header>
+      <header className="topbar"><div className="topbar-title"><button className="mobile-brand" onClick={() => go("today")}><Logo />POCKET GHILLIE</button><span className="desktop-crumb">Your field guide <span>/</span> {venue ? venue.name : NAV.find(n => n[0] === screen)?.[1] || "Alerts & sync"}</span></div><div className="topbar-actions"><span className="topbar-date">{new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "Europe/London" })}</span><button className="icon-button" aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`} onClick={() => setTheme(theme === "light" ? "dark" : "light")}>{theme === "light" ? <Moon size={18} /> : <Sun size={18} />}</button><button className="icon-button" aria-label="Alerts and sync" onClick={() => go("settings")}><Bell size={19} /></button></div></header>
       <main id="main" tabIndex="-1" className="main-content">
         {!online && <div className="inline-error">You're offline. Cached forecasts may be out of date; river readings and cloud sync require a connection.</div>}
         {body}
-        <footer className="app-footer"><span>TIGHTLINES UK <span>For the days worth getting up for.</span></span><span>Forecasts: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Model scores, not catch guarantees</span></footer>
+        <footer className="app-footer"><span>POCKET GHILLIE <span>For the days worth getting up for.</span></span><span>Forecasts: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">Open-Meteo</a> · Model scores, not catch guarantees</span></footer>
       </main>
     </div>
-    <nav className="mobile-nav" aria-label="Mobile navigation">{NAV.map(([k, title, Icon]) => <button key={k} className={screen === k && !venue ? "active" : ""} onClick={() => go(k)}><Icon size={19} /><span>{{ today: "Today", waters: "Waters", map: "Map", rivers: "Rivers", reports: "Reports", guide: "Guide", log: "Journal" }[k]}</span></button>)}</nav>
+    <nav className="mobile-nav" aria-label="Mobile navigation">{MOBILE_NAV.map(([k, title, Icon]) => <button key={k} className={(screen === k || k === "more" && ["map", "rivers", "reports", "guide", "settings"].includes(screen)) && !venue ? "active" : ""} onClick={() => go(k)}><Icon size={19} /><span>{title}</span></button>)}</nav>
   </div>;
 }

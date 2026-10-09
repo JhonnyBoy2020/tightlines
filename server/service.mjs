@@ -7,6 +7,9 @@ import { fetchMany } from "../src/lib/weather.js";
 import { scoreWeek } from "../src/lib/score.js";
 import { venueStatus } from "../src/lib/util.js";
 import { deployment } from "./deployment-context.generated.js";
+import { validateField } from "../src/lib/field.js";
+import { aiStatus, coach } from "./ai.mjs";
+import { identifyTackle } from "./vision.mjs";
 
 const sha = text => createHash("sha256").update(text).digest("hex");
 const bad = (message, status = 400) => Object.assign(new Error(message), { status });
@@ -32,9 +35,9 @@ async function auth(req) {
   if (!await store().get(`vault/${id}`, { type: "json" })) throw bad("This logbook key was not found on this host. Check the key and website.", 401);
   return id;
 }
-async function body(req) {
+async function body(req, limit = 300000) {
   const raw = await req.text();
-  if (raw.length > 300000) throw bad("This request is too large.", 413);
+  if (raw.length > limit) throw bad("This request is too large.", 413);
   try { return JSON.parse(raw); } catch { throw bad("Invalid JSON."); }
 }
 export async function pushKeys() {
@@ -68,6 +71,7 @@ export async function handler(req) {
       if (origin && origin !== u.origin && !process.env.TL_PREVIEW_DATA) throw bad("Cross-origin request refused.", 403);
     }
     if (route === "/health") return json({ ok: true, storage: process.env.TL_PREVIEW_DATA ? "private development server" : "Netlify Blobs", scheduled: deployment.production, push: true });
+    if (route === "/ai/status" && req.method === "GET") return json(aiStatus());
     if (route === "/rivers" && req.method === "GET") {
       const lat = Number(u.searchParams.get("lat")), lon = Number(u.searchParams.get("lon"));
       if (!Number.isFinite(lat) || !Number.isFinite(lon) || lat < 49 || lat > 56 || lon < -7 || lon > 3) throw bad("Select a location in England.");
@@ -90,6 +94,19 @@ export async function handler(req) {
       return json({ key }, 201);
     }
     const vault = await auth(req), db = store(), prefix = `records/${vault}/`;
+    if (route === "/ai/identify" && req.method === "POST") return json(await identifyTackle(await body(req, 1900000), vault, db));
+    if (route === "/ai/brief" && req.method === "POST") return json(await coach(await body(req), vault, db));
+    if (route === "/field") {
+      const key = `field/${vault}`, old = await db.getWithMetadata(key, { type: "json" });
+      if (req.method === "GET") return json({ data: old?.data || null, revision: old?.etag || "new" });
+      if (req.method !== "PUT") throw bad("Method not allowed.", 405);
+      const input = await body(req), data = validateField(input.data);
+      if (input.revision !== (old?.etag || "new")) throw bad("Another device changed this field book. Export your draft, then load the saved copy before saving again.", 409);
+      const saved = await db.setJSON(key, data, old ? { onlyIfMatch: old.etag } : { onlyIfNew: true });
+      if (!saved.modified) throw bad("Another device saved first. Export your draft and reload the saved field book.", 409);
+      if (!saved.etag) throw bad("Saved, but a confirmation token was unavailable. Load the saved copy before further edits.", 409);
+      return json({ revision: saved.etag });
+    }
     if (route === "/sync" && req.method === "POST") {
       const input = await body(req);
       const entries = input.entries || [], deleted = input.deleted || [];
@@ -98,7 +115,9 @@ export async function handler(req) {
         const id = String(item.id);
         if (!cleanID(id) || !VENUES.some(v => v.id === item.venueId)) throw bad("Invalid catch record.");
         if (!Number.isInteger(Number(item.fish)) || Number(item.fish) < 0 || Number(item.fish) > 9999) throw bad("Fish caught must be a whole number from 0 to 9999.");
-        const record = { id, venueId: item.venueId, venueName: VENUES.find(v => v.id === item.venueId).name, fish: String(item.fish), date: text(item.date, 40), best: text(item.best, 120), fly: text(item.fly, 120), line: text(item.line, 120), note: text(item.note), score: Number.isFinite(item.score) ? item.score : null, cond: item.cond && typeof item.cond === "object" ? JSON.parse(JSON.stringify(item.cond).slice(0, 5000)) : null, savedAt: new Date().toISOString() };
+        const conditionJSON = item.cond && typeof item.cond === "object" ? JSON.stringify(item.cond) : "";
+        if (conditionJSON.length > 5000) throw bad("Condition snapshot is too large.");
+        const record = { id, venueId: item.venueId, venueName: VENUES.find(v => v.id === item.venueId).name, fish: String(item.fish), date: text(item.date, 40), best: text(item.best, 120), fly: text(item.fly, 120), line: text(item.line, 120), note: text(item.note), score: Number.isFinite(item.score) ? item.score : null, cond: conditionJSON ? JSON.parse(conditionJSON) : null, durationMinutes: Number.isFinite(item.durationMinutes) ? Math.max(0, Math.min(14400, item.durationMinutes)) : null, missedTakes: Number.isInteger(item.missedTakes) ? Math.max(0, Math.min(500, item.missedTakes)) : 0, savedAt: new Date().toISOString() };
         // Immutable entries + permanent tombstones: concurrent devices never resurrect deletes.
         await db.setJSON(prefix + id, record, { onlyIfNew: true });
       }
@@ -149,7 +168,7 @@ export async function handler(req) {
       if (Date.now() - (old.data.testAt || 0) < 60000) throw bad("Wait one minute before another test.", 429);
       const claimed = await db.setJSON(`subscriptions/${id}`, { ...old.data, testAt: Date.now() }, { onlyIfMatch: old.etag });
       if (!claimed.modified) throw bad("Please retry.", 409);
-      await sendPush(old.data.subscription, { title: "TightLines is connected", body: "Test notification. No fishing recommendation is implied.", url: "/", tag: "tightlines-test" });
+      await sendPush(old.data.subscription, { title: "Pocket Ghillie is connected", body: "Test notification. No fishing recommendation is implied.", url: "/", tag: "tightlines-test" });
       return json({ ok: true });
     }
     throw bad("Not found.", 404);
