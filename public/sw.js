@@ -1,5 +1,5 @@
-/* TightLines service worker — app shell offline, last forecast offline, map tiles cached */
-const VERSION = "tl-v3";
+/* Pocket Ghillie service worker: existing data identities are preserved. */
+const VERSION = "tl-v4-pocket-ghillie-lens";
 const SHELL = `${VERSION}-shell`, DATA = `${VERSION}-data`, TILES = `${VERSION}-tiles`;
 const MAX_TILES = 600;
 
@@ -56,8 +56,8 @@ self.addEventListener("fetch", (e) => {
 
 self.addEventListener("push", event => {
   let data = {};
-  try { data = event.data?.json() || {}; } catch { data = { body: "Open TightLines to review your waters." }; }
-  event.waitUntil(self.registration.showNotification(data.title || "TightLines", {
+  try { data = event.data?.json() || {}; } catch { data = { body: "Open Pocket Ghillie to review your waters." }; }
+  event.waitUntil(self.registration.showNotification(data.title || "Pocket Ghillie", {
     body: data.body || "New conditions update", icon: "/icon-192.png", badge: "/icon-192.png",
     tag: data.tag || "tightlines", data: { url: typeof data.url === "string" && data.url.startsWith("/") && !data.url.startsWith("//") ? data.url : "/" },
   }));

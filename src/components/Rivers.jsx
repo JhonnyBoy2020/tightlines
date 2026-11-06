@@ -4,7 +4,7 @@ import { api } from "../lib/cloud.js";
 import { milesFrom } from "../lib/util.js";
 import FieldChart from "./FieldChart.jsx";
 const stamp = value => value ? new Date(value).toLocaleString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + " UK" : "No reading";
-export default function Rivers({ home }) {
+export default function Rivers({ home, onUseGauge, selectedGauge }) {
   const [stations, setStations] = useState([]), [selected, setSelected] = useState(""), [measureId, setMeasure] = useState(""), [readings, setReadings] = useState([]), [query, setQuery] = useState(""), [error, setError] = useState(""), [loading, setLoading] = useState(false), [traceBusy, setTraceBusy] = useState(false), [reload, refresh] = useState(0);
   useEffect(() => {
     const ctrl = new AbortController(); setLoading(true); setError(""); setReadings([]); setSelected(""); setMeasure(""); setStations([]);
@@ -35,6 +35,8 @@ export default function Rivers({ home }) {
       </section>
       <section className="panel river-detail"><p className="eyebrow">GAUGE DETAIL</p><h2>{station?.label || "Choose a station"}</h2><p className="muted">{station?.river || "Real readings, with no sample fallback."}</p>
         {station && <label className="field-label">Measurement<select value={measureId} onChange={e => setMeasure(e.target.value)}>{station.measures.map(m => <option key={m.id} value={m.id}>{m.qualifier} · {m.unit}</option>)}</select></label>}
+        {measure && <button className="button secondary field-spacing" onClick={() => onUseGauge({ measureId: measure.id, label: `${station.label} · ${measure.qualifier}` })}>{selectedGauge?.measureId === measure.id ? "Selected for AI briefing" : "Use this gauge in my AI briefing"}</button>}
+        {selectedGauge && <button className="text-button" onClick={() => onUseGauge(null)}>Remove gauge from briefing</button>}
         <div className="river-metrics"><div><span className="eyebrow">LATEST LEVEL</span><div className="metric-number">{latest ? Number(latest.value).toFixed(3) : "—"}<small>{measure?.unit}</small></div></div><div><span className="eyebrow">CHANGE SINCE {prior ? stamp(prior.dateTime) : "PRIOR READING"}</span><div className="metric-number">{delta == null ? "—" : `${delta >= 0 ? "+" : ""}${delta.toFixed(3)}`}<small>{measure?.unit}</small></div></div></div>
         <p className={`small ${stale ? "warning-text" : "muted"}`}>{stale ? "Delayed: " : ""}Observed {stamp(latest?.dateTime)}{stale ? ". More than two hours old." : ""}</p>
         {traceBusy ? <div className="skeleton-block" /> : <FieldChart data={rows} unit={measure?.unit || "m"} label="Gauge level" height={280} />}

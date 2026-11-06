@@ -7,7 +7,7 @@ export default function FieldChart({ data, unit = "", color = "var(--accent)", h
     const rows = [["Time", label, "Unit"], ...data.map(d => [d.full || d.label, d.value, unit])];
     const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const a = document.createElement("a"); a.href = url; a.download = `tightlines-${label.toLowerCase().replaceAll(" ", "-")}.csv`; a.click();
+    const a = document.createElement("a"); a.href = url; a.download = `pocket-ghillie-${label.toLowerCase().replaceAll(" ", "-")}.csv`; a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   const decimals = unit.startsWith("m") && unit !== "mph" && unit !== "mm" ? 3 : 1;

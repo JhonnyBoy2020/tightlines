@@ -6,14 +6,15 @@ import { MONTH_GUIDE } from "../data/guide.js";
 import { REPORTS } from "../data/reports.js";
 import { sunTimes } from "../lib/astro.js";
 import { hhmm } from "../lib/util.js";
+import Intelligence from "./Intelligence.jsx";
 
-export default function Dashboard({ items, feeds, home, radius, onOpen, go, log, favs, loading }) {
+export default function Dashboard({ items, feeds, home, radius, onOpen, go, log, favs, loading, intelligenceProps }) {
   const [selected, setSelected] = useState("thornwood");
   const [metric, setMetric] = useState("press");
   const [checks, setChecks] = useState([]);
   const focus = items.find(x => x.v.id === selected) || items[0];
   const f = feeds[focus?.v.id], d = focus?.sel, now = f?.now;
-  const eligible = items.filter(x => x.live && !x.sel.status && !x.sel.thunder && x.sel.gust < 35 && x.dist <= radius).sort((a, b) => b.sel.result.score - a.sel.result.score);
+  const eligible = items.filter(x => x.live && !x.sel.status && !x.sel.thunder && x.sel.gust < 35 && x.sel.result.water < 20 && x.dist <= radius).sort((a, b) => b.sel.result.score - a.sel.result.score);
   const best = eligible[0];
   const guide = MONTH_GUIDE[new Date().getMonth()];
   const sun = focus && sunTimes(new Date(), focus.v.lat, focus.v.lon);
@@ -32,6 +33,7 @@ export default function Dashboard({ items, feeds, home, radius, onOpen, go, log,
       </section>
       <section className="panel seasonal-card"><div className="section-heading"><span className="eyebrow">THE SEASONAL EDIT</span><Fish size={19} /></div><h2>{new Date().toLocaleDateString("en-GB", { month: "long" })} on the fly.</h2><p>{guide.headline}</p><div className="season-fly">{guide.lures?.[0] || guide.flies?.[0]}</div><p className="small">A seasonal starting point, not a live catch report. Check the fishery's permitted methods.</p><button className="text-button" onClick={() => go("guide")}>Open the fly guide <ArrowRight size={16} /></button></section>
     </div>
+    <Intelligence {...intelligenceProps} />
     <div className="section-heading conditions-heading"><div><h2>Read the water</h2><span className="small muted">Forecast model, not an on-site sensor · {f ? `fetched ${hhmm(f.at)} UK` : "awaiting live data"}</span></div><label className="inline-label"><span className="sr-only">Forecast water</span><select aria-label="Forecast water" value={focus?.v.id || ""} onChange={e => setSelected(e.target.value)}>{items.map(x => <option key={x.v.id} value={x.v.id}>{x.v.name}</option>)}</select></label></div>
     <div className="metrics-row">
       {[{ icon: Gauge, label: "ATMOSPHERIC PRESSURE", value: now ? Math.round(now.press) : "—", unit: "hPa", sub: now ? `${now.t3 > 0 ? "+" : ""}${now.t3} hPa over 3h` : "Live feed required" }, { icon: Wind, label: "WIND & GUSTS", value: now ? Math.round(now.wind) : "—", unit: "mph", sub: now ? `${now.dir} · gusts ${Math.round(now.gust)} mph` : "Live feed required" }, { icon: CloudSun, label: "AIR TEMPERATURE", value: now ? Math.round(now.temp) : "—", unit: "°C", sub: now ? `${Math.round(now.cloud)}% cloud · ${Math.round(now.pop)}% rain chance` : "No sample values shown" }, { icon: Sunrise, label: "LAST LIGHT", value: sun ? hhmm(sun.set) : "—", unit: "", sub: "UK time · check fishery closing time" }].map(m => <section className="metric" key={m.label}><div className="section-heading"><span className="eyebrow">{m.label}</span><m.icon size={18} /></div><div className="metric-number">{m.value}<small>{m.unit}</small></div><p>{m.sub}</p></section>)}

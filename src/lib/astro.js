@@ -3,7 +3,7 @@ import SunCalc from "suncalc";
 /* Sunrise / sunset — same algorithm as v1 */
 export function sunTimes(date, lat, lon) {
   const rad = Math.PI / 180;
-  const noon = new Date(date); noon.setHours(12, 0, 0, 0);
+  const noon = new Date(date); noon.setUTCHours(12, 0, 0, 0);
   const n = Math.round(noon.getTime() / 86400000 + 2440587.5 - 2451545.0);
   const Js = n - lon / 360;
   const M = ((357.5291 + 0.98560028 * Js) % 360 + 360) % 360;
